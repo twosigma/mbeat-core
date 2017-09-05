@@ -29,8 +29,8 @@ obj/sub.o: src/sub.c
 	$(CC) $(CFLAGS) -c src/sub.c -o obj/sub.o
 
 clean:
-	rm bin/mbeat_pub
-	rm bin/mbeat_sub
-	rm obj/common.o
-	rm obj/pub.o
-	rm obj/sub.o
+	rm -f bin/mbeat_pub
+	rm -f bin/mbeat_sub
+	rm -f obj/common.o
+	rm -f obj/pub.o
+	rm -f obj/sub.o
