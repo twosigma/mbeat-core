@@ -226,17 +226,17 @@ parse_endpoints(endpoint* eps, const int ep_idx, char* argv[], const int ep_cnt)
     /* Parse all endpoint parts. */
     memset(&eps[i], 0, sizeof(eps[i]));
 
-    if (parse_iface(&eps[i], iname, ifaces) == 0) {
+    if (!parse_iface(&eps[i], iname, ifaces)) {
       result = false;
       break;
     }
 
-    if (parse_maddr(&eps[i], maddr) == 0) {
+    if (!parse_maddr(&eps[i], maddr)) {
       result = false;
       break;
     }
 
-    if (parse_mport(&eps[i], mport) == 0) {
+    if (!parse_mport(&eps[i], mport)) {
       result = false;
       break;
     }
