@@ -5,7 +5,7 @@
 #  license is in the file LICENSE, distributed as part of this software.
 
 CC = gcc
-FEATURE_TEST = -D_BSD_SOURCE -D_XOPEN_SOURCE -D_POSIX_C_SOURCE=199309
+FEATURE_TEST = -D_BSD_SOURCE -D_XOPEN_SOURCE -D_POSIX_C_SOURCE=200809L
 CFLAGS = -std=c99 -Wall -Wextra $(FEATURE_TEST)
 LDFLAGS = -lrt
 
