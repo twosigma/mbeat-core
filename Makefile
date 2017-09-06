@@ -13,7 +13,7 @@ all: bin/mbeat_pub bin/mbeat_sub
 
 # executables
 bin/mbeat_pub: obj/pub.o obj/common.o
-	$(CC) $(LDFLAGS) src/pub.o obj/common.o -o bin/mbeat_pub
+	$(CC) $(LDFLAGS) obj/pub.o obj/common.o -o bin/mbeat_pub
 
 bin/mbeat_sub: obj/sub.o obj/common.o
 	$(CC) $(LDFLAGS) obj/sub.o obj/common.o -o bin/mbeat_sub
