@@ -21,6 +21,9 @@
 #define MBEAT_VERSION_MINOR 0
 #define MBEAT_VERSION_PATCH 0
 
+/* Standard UDP port. */
+#define MBEAT_PORT 22999
+
 #define PAYLOAD_VERSION    1 /* Accepted payload version.            */
 #define ENDPOINT_MAX    2048 /* Maximal number of allowed endpoints. */
 

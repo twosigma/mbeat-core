@@ -139,43 +139,18 @@ parse_iface(endpoint* ep, const char* inp, const struct ifaddrs* ifaces)
 static bool 
 parse_maddr(endpoint* ep, const char* inp)
 {
-  /* The connection is always over IPv4. */
-  ep->ep_maddr.sin_family = AF_INET;
-
   /* Convert and validate the multicast address. */
-  if (inet_aton(inp, &(ep->ep_maddr.sin_addr)) == 0) {
+  if (inet_aton(inp, &ep->ep_maddr) == 0) {
     warnx("Unable to parse the multicast address '%s'", inp);
     return false;
   }
 
   /* Ensure that the address belongs to the multicast range. */
-  if (!IN_MULTICAST(ntohl(ep->ep_maddr.sin_addr.s_addr))) {
+  if (!IN_MULTICAST(ntohl(ep->ep_maddr.s_addr))) {
     warnx("Address '%s' does not belong to the multicast range", inp);
     return false;
   }
 
-  return true;
-}
-
-/** Parse and validate the multicast port.
- *
- * @param[out] ep  connection endpoint
- * @param[in]  inp input string
- *
- * @return status code
-**/
-static int
-parse_mport(endpoint* ep, const char* inp)
-{
-  uint32_t port;
-
-  /* Parse the multicast port. */
-  if (parse_uint32(&port, inp, 0, 65535) == 0) {
-    warnx("Unable to parse the port number '%s'", inp);
-    return false;
-  }
-
-  ep->ep_maddr.sin_port = htons((uint16_t)port);
   return true;
 }
 
@@ -196,7 +171,6 @@ parse_endpoints(endpoint* eps, const int ep_idx, char* argv[], const int ep_cnt)
   bool result;
   char iname[256];
   char maddr[256];
-  char mport[256];
   struct ifaddrs* ifaces;
 
   result = true;
@@ -212,12 +186,10 @@ parse_endpoints(endpoint* eps, const int ep_idx, char* argv[], const int ep_cnt)
     /* Reset all buffers. */
     memset(iname, '\0', 256);
     memset(maddr, '\0', 256);
-    memset(mport, '\0', 256);
 
     /* Parse the endpoint format. */
-    parts = sscanf(argv[ep_idx + i], "%255[^=]=%255[^:]:%255s", iname, maddr,
-                   mport);
-    if (parts != 3) {
+    parts = sscanf(argv[ep_idx + i], "%255[^=]=%255[^:]", iname, maddr);
+    if (parts != 2) {
       warnx("Unable to parse the endpoint '%s'", argv[ep_idx + i]);
       result = false;
       break;
@@ -232,11 +204,6 @@ parse_endpoints(endpoint* eps, const int ep_idx, char* argv[], const int ep_cnt)
     }
 
     if (!parse_maddr(&eps[i], maddr)) {
-      result = false;
-      break;
-    }
-
-    if (!parse_mport(&eps[i], mport)) {
       result = false;
       break;
     }

@@ -40,10 +40,10 @@ typedef struct _raw_output {
 
 /** Connection between a local interface and a multicast group. */
 typedef struct _endpoint {
-  int                ep_sock;             /**< Connection socket.       */
-  struct sockaddr_in ep_maddr;            /**< Multicast group.         */
-  struct in_addr     ep_iaddr;            /**< Local interface address. */
-  char               ep_iname[INAME_LEN]; /**< Local interface name.    */
+  int            ep_sock;             /**< Connection socket.       */
+  struct in_addr ep_maddr;            /**< Multicast address.       */
+  struct in_addr ep_iaddr;            /**< Local interface address. */
+  char           ep_iname[INAME_LEN]; /**< Local interface name.    */
 } endpoint;
 
 /** Command-line options of the publisher utility. */
@@ -53,6 +53,7 @@ typedef struct _pub_options {
   uint32_t po_int; /**< Wait time between published datagrams. */
   uint32_t po_ttl; /**< Time-To-Live for published datagrams.  */
   uint32_t po_sid; /**< Session ID of the current run.         */
+  uint32_t po_port; /**< UDP port for all endpoints.            */
   uint8_t  po_lop; /**< Datagram looping on localhost.         */
 } pub_options;
 
@@ -63,6 +64,7 @@ typedef struct _sub_options {
   uint32_t so_sid;  /**< Session ID filter of received datagrams.        */
   uint32_t so_exp;  /**< Quit after expected number of packets arrive.   */
   uint32_t so_off;  /**< Sequence number offset.                         */
+  uint32_t so_port; /**< UDP port for all endpoints.                     */
   uint8_t  so_raw;  /**< Output received datagrams in raw binary format. */
   uint8_t  so_unb;  /**< Turn off buffering on the output stream.        */
 } sub_options;

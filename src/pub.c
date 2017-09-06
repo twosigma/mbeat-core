@@ -44,8 +44,8 @@ print_usage(void)
   fprintf(stderr, "multicast heartbeat publisher - send datagrams to selected"
                   " network endpoints - v%d.%d.%d\n\n", MBEAT_VERSION_MAJOR,
                   MBEAT_VERSION_MINOR, MBEAT_VERSION_PATCH);
-  fprintf(stderr, "mbeat_pub [-b BSZ] [-c CNT] [-h] [-i MS] [-l] [-s SID]"
-                  " [-t TTL] iface=maddr:mport [iface=maddr:mport ...]\n");
+  fprintf(stderr, "mbeat_pub [-b BSZ] [-c CNT] [-h] [-i MS] [-l] [-p PORT]"
+                  " [-s SID] [-t TTL] iface=maddr [iface=maddr ...]\n");
   fprintf(stderr, "  -b BSZ  Send buffer size in bytes.\n");
   fprintf(stderr, "  -c CNT  Publish exactly CNT datagrams."
                   " (def=%d)\n", DEF_COUNT);
@@ -53,6 +53,8 @@ print_usage(void)
   fprintf(stderr, "  -i MS   Interval between published datagrams in"
                   " milliseconds. (def=%d)\n", DEF_INTERVAL);
   fprintf(stderr, "  -l      Turn on datagram looping.\n");
+  fprintf(stderr, "  -p PORT UDP port to use for all endpoints."
+		  " (def=%d)\n", MBEAT_PORT);
   fprintf(stderr, "  -s SID  Session ID for the current run. (def=random)\n");
   fprintf(stderr, "  -t TTL  Set the Time-To-Live for all published datagrams."
                   " (def=%d)\n", DEF_TIME_TO_LIVE);
@@ -106,9 +108,10 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
   opts->po_int = DEF_INTERVAL;
   opts->po_ttl = DEF_TIME_TO_LIVE;
   opts->po_lop = DEF_LOOP;
+  opts->po_port = MBEAT_PORT;
   opts->po_sid = generate_sid();
 
-  while ((opt = getopt(argc, argv, "b:c:hi:ls:t:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:hi:lp:s:t:")) != -1) {
     switch (opt) {
 
       /* Send buffer size. The lowest accepted value is 1024, enforcing the
@@ -138,6 +141,12 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
       /* Enable the datagram looping on localhost. */
       case 'l':
         opts->po_lop = 1;
+        break;
+
+      /* UDP port for all endpoints. */
+      case 'p':
+        if (parse_uint32(&opts->po_port, optarg, 0, 65535) == 0)
+          return false;
         break;
 
       /* Session ID of the current run. */
@@ -242,16 +251,16 @@ create_sockets(endpoint* eps, const int ep_cnt, const pub_options* opts)
  *
  * @param[out] pl    payload
  * @param[in]  ep    endpoint
- * @param[in]  snum  sequence number of the heartbeat
  * @param[in]  sid   session ID
  * @param[in]  hname hostname
+ * @param[in]  opts  command-line options
 **/
 static void
 fill_payload(payload* pl,
              endpoint* ep,
              const uint32_t snum,
-             const uint32_t sid,
-             const char* hname)
+             const char* hname,
+             const pub_options* opts)
 {
   struct timespec tv;
 
@@ -259,9 +268,9 @@ fill_payload(payload* pl,
 
   pl->pl_fver  = htobe16(PAYLOAD_VERSION);
   pl->pl_snum  = htobe32(snum);
-  pl->pl_sid   = htobe32(sid);
-  pl->pl_maddr = htobe32(ep->ep_maddr.sin_addr.s_addr);
-  pl->pl_mport = htobe16(ep->ep_maddr.sin_port);
+  pl->pl_sid   = htobe32(opts->po_sid);
+  pl->pl_maddr = htobe32(ep->ep_maddr.s_addr);
+  pl->pl_mport = htobe16(opts->po_port);
   memcpy(pl->pl_iname, ep->ep_iname, sizeof(pl->pl_iname));
   memcpy(pl->pl_hname, hname, sizeof(pl->pl_hname));
 
@@ -289,17 +298,25 @@ publish_datagrams(endpoint* eps,
   int i;
   payload pl;
   struct timespec ts;
+  struct sockaddr_in addr;
 
   convert_millis(&ts, opts->po_int);
+
+  /* Prepare the address structure. */
+  addr.sin_port   = htons((uint16_t)opts->po_port);
+  addr.sin_family = AF_INET;
 
   /* Publish the requested number of datagrams. */
   for (c = 0; c < opts->po_cnt; c++) {
     for (i = 0; i < ep_cnt; i++) {
-      fill_payload(&pl, &eps[i], c, opts->po_sid, hname);
+      fill_payload(&pl, &eps[i], c, hname, opts);
 
-      if (sendto(eps[i].ep_sock, &pl, sizeof(pl), MSG_DONTWAIT,
-                 (struct sockaddr*)&eps[i].ep_maddr,
-                 sizeof(eps[i].ep_maddr)) == -1) {
+      addr.sin_addr.s_addr = eps[i].ep_maddr.s_addr;
+      if (sendto(eps[i].ep_sock,                        // socket
+                 &pl, sizeof(pl),                       // payload
+                 MSG_DONTWAIT,                          // flags
+                 (struct sockaddr*)&addr, sizeof(addr)) // address
+                 == -1) {
         warn("Unable to send datagram");
         return false;
       }

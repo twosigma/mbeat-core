@@ -53,12 +53,14 @@ print_usage(void)
                   " selected network endpoints - v%d.%d.%d\n\n",
                   MBEAT_VERSION_MAJOR, MBEAT_VERSION_MINOR,
                   MBEAT_VERSION_PATCH);
-  fprintf(stderr, "mbeat_sub [-b BSZ] [-e CNT] [-h] [-o OFF] [-r] [-s SID]"
-                  " [-t MS] [-u] iface=maddr:mport [iface=maddr:mport ...]\n");
+  fprintf(stderr, "mbeat_sub [-b BSZ] [-e CNT] [-h] [-o OFF] [-p PORT] [-r]"
+                  " [-s SID] [-t MS] [-u] iface=maddr [iface=maddr ...]\n");
   fprintf(stderr, "  -b BSZ  Receive buffer size in bytes.\n");
   fprintf(stderr, "  -e CNT  Quit after CNT datagrams were received.\n");
   fprintf(stderr, "  -h      Print this help message.\n");
   fprintf(stderr, "  -o OFF  Ignore payloads with lesser sequence number.\n");
+  fprintf(stderr, "  -p PORT UDP port for all endpoints. (def=%d)\n",
+                  MBEAT_PORT);
   fprintf(stderr, "  -r      Output the data in raw binary format.\n");
   fprintf(stderr, "  -s SID  Only report datagrams with this session ID.\n");
   fprintf(stderr, "  -t MS   Timeout of the process after MS milliseconds.\n");
@@ -86,10 +88,11 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
   opts->so_sid  = DEF_SESSION_ID;
   opts->so_exp  = DEF_EXPECT_COUNT;
   opts->so_off  = DEF_OFFSET;
+  opts->so_port = MBEAT_PORT;
   opts->so_raw  = DEF_RAW_OUTPUT;
   opts->so_unb  = DEF_UNBUFFERED;
 
-  while ((opt = getopt(argc, argv, "b:e:ho:rs:t:u")) != -1) {
+  while ((opt = getopt(argc, argv, "b:e:ho:p:rs:t:u")) != -1) {
     switch (opt) {
 
       /* Receive buffer size. The lowest accepted value is 128, enforcing the
@@ -113,6 +116,12 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
       /* Sequence number offset. */
       case 'o':
         if (parse_uint32(&opts->so_off, optarg, 1, UINT32_MAX) == 0)
+          return false;
+        break;
+
+      /* UDP port for all endpoints. */
+      case 'p':
+        if (parse_uint32(&opts->so_port, optarg, 0, 65535) == 0)
           return false;
         break;
 
@@ -171,6 +180,7 @@ create_sockets(endpoint* eps, const int ep_cnt, const sub_options* opts)
   int i;
   int enable;
   int buf_size;
+  struct sockaddr_in addr;
   struct ip_mreq req;
   char* mcast_str;
 
@@ -199,18 +209,20 @@ create_sockets(endpoint* eps, const int ep_cnt, const sub_options* opts)
       }
     }
 
-    mcast_str = inet_ntoa(eps[i].ep_maddr.sin_addr); 
+    mcast_str = inet_ntoa(eps[i].ep_maddr);
+    addr.sin_family = AF_INET;
+    addr.sin_port   = htons((uint16_t)opts->so_port);
+    addr.sin_addr   = eps[i].ep_maddr;
 
     /* Bind the socket to the multicast group. */
-    if (bind(eps[i].ep_sock, (struct sockaddr*)&eps[i].ep_maddr,
-             sizeof(eps[i].ep_maddr)) == -1) {
+    if (bind(eps[i].ep_sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
       warn("Unable to bind to address %s", mcast_str);
       return false;
     }
 
     /* Subscribe the socket to the multicast group. */
     req.imr_interface.s_addr = eps[i].ep_iaddr.s_addr;
-    req.imr_multiaddr.s_addr = eps[i].ep_maddr.sin_addr.s_addr;
+    req.imr_multiaddr.s_addr = eps[i].ep_maddr.s_addr;
     if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                    &req, sizeof(req)) == -1) {
       warn("Unable to join multicast group %s", mcast_str);
@@ -322,7 +334,8 @@ static void
 print_payload_csv(const payload* pl,
                   const endpoint* ep,
                   const struct timespec* tv,
-                  const char* hname)
+                  const char* hname,
+                  const sub_options* opts)
 {
   struct in_addr maddr;
 
@@ -332,7 +345,7 @@ print_payload_csv(const payload* pl,
     pl->pl_snum,
     pl->pl_sid,
     inet_ntoa(maddr),
-    pl->pl_mport,
+    opts->so_port,
     (int)sizeof(pl->pl_iname), pl->pl_iname,
     (int)sizeof(pl->pl_hname), pl->pl_hname,
     (int)sizeof(ep->ep_iname), ep->ep_iname,
@@ -350,12 +363,14 @@ print_payload_csv(const payload* pl,
  * @param[in] ep    connection endpoint
  * @param[in] tv    packet arrival time
  * @param[in] hname hostname
+ * @param[in] opts  command-line options
 **/
 static void
 print_payload_raw(const payload* pl,
                   const endpoint* ep,
                   const struct timespec* tv,
-                  const char* hname)
+                  const char* hname,
+                  const sub_options* opts)
 {
   raw_output ro;
 
@@ -363,7 +378,7 @@ print_payload_raw(const payload* pl,
   ro.ro_pl.pl_snum  = pl->pl_snum;
   ro.ro_pl.pl_sid   = pl->pl_sid;
   ro.ro_pl.pl_maddr = pl->pl_maddr;
-  ro.ro_pl.pl_mport = pl->pl_mport;
+  ro.ro_pl.pl_mport = opts->so_port;
   memcpy(ro.ro_pl.pl_iname, pl->pl_iname, sizeof(pl->pl_iname));
   memcpy(ro.ro_pl.pl_hname, pl->pl_hname, sizeof(pl->pl_hname));
   ro.ro_pl.pl_sec   = pl->pl_sec;
@@ -409,16 +424,22 @@ handle_event(uint32_t* nrecv,
 {
   payload pl;
   ssize_t nbytes;
+  struct sockaddr_in addr;
   socklen_t addr_len;
   struct timespec tv;
 
+  /* Prepare the address for the ingress loop. */
+  addr.sin_port   = htons((uint16_t)opts->so_port);
+  addr.sin_family = AF_INET;
+
   /* Loop through all available datagrams on the socket. */
   while (1) {
-
     /* Read an incoming datagram. */
     addr_len = (socklen_t)sizeof(struct sockaddr_in*);
-    nbytes = recvfrom(ep->ep_sock, &pl, sizeof(pl), MSG_TRUNC | MSG_DONTWAIT,
-                      (struct sockaddr*)&ep->ep_maddr, &addr_len);
+    nbytes = recvfrom(ep->ep_sock,                         // socket
+                      &pl, sizeof(pl),                     // payload
+                      MSG_TRUNC | MSG_DONTWAIT,            // flags
+                      (struct sockaddr*)&addr, &addr_len); // address
     if (nbytes == -1) {
       /* Exit the reading loop if there are no more datagrams to process. */
       if (errno == EAGAIN)
@@ -454,9 +475,9 @@ handle_event(uint32_t* nrecv,
       pl.pl_snum -= opts->so_off;
 
       if (opts->so_raw)
-        print_payload_raw(&pl, ep, &tv, hname);
+        print_payload_raw(&pl, ep, &tv, hname, opts);
       else
-        print_payload_csv(&pl, ep, &tv, hname);
+        print_payload_csv(&pl, ep, &tv, hname, opts);
     }
 
     /* Successfully received a datagram. */
