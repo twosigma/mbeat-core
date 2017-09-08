@@ -48,13 +48,13 @@ typedef struct _endpoint {
 
 /** Command-line options of the publisher utility. */
 typedef struct _pub_options {
-  uint32_t po_buf; /**< Socket send buffer size in bytes.      */
-  uint32_t po_cnt; /**< Number of published datagrams.         */
-  uint32_t po_int; /**< Wait time between published datagrams. */
-  uint32_t po_ttl; /**< Time-To-Live for published datagrams.  */
-  uint32_t po_sid; /**< Session ID of the current run.         */
+  uint32_t po_buf;  /**< Socket send buffer size in bytes.      */
+  uint32_t po_cnt;  /**< Number of published datagrams.         */
+  uint32_t po_int;  /**< Wait time between published datagrams. */
+  uint32_t po_ttl;  /**< Time-To-Live for published datagrams.  */
+  uint32_t po_sid;  /**< Session ID of the current run.         */
   uint32_t po_port; /**< UDP port for all endpoints.            */
-  uint8_t  po_lop; /**< Datagram looping on localhost.         */
+  uint8_t  po_lop;  /**< Datagram looping on localhost.         */
 } pub_options;
 
 /** Command-line options of the subscriber utility. */
