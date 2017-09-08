@@ -24,7 +24,6 @@
 #include <limits.h>
 #include <time.h>
 #include <err.h>
-#include <endian.h>
 
 #include "types.h"
 #include "common.h"
@@ -266,17 +265,17 @@ fill_payload(payload* pl,
 
   memset(pl, 0, sizeof(*pl));
 
-  pl->pl_fver  = htobe16(PAYLOAD_VERSION);
-  pl->pl_snum  = htobe32(snum);
-  pl->pl_sid   = htobe32(opts->po_sid);
-  pl->pl_maddr = htobe32(ep->ep_maddr.s_addr);
-  pl->pl_mport = htobe16(opts->po_port);
+  pl->pl_fver  = htons(PAYLOAD_VERSION);
+  pl->pl_snum  = htonl(snum);
+  pl->pl_sid   = htonl(opts->po_sid);
+  pl->pl_maddr = htonl(ep->ep_maddr.s_addr);
+  pl->pl_mport = htons(opts->po_port);
   memcpy(pl->pl_iname, ep->ep_iname, sizeof(pl->pl_iname));
   memcpy(pl->pl_hname, hname, sizeof(pl->pl_hname));
 
   clock_gettime(CLOCK_REALTIME, &tv);
-  pl->pl_sec   = htobe64((uint64_t)tv.tv_sec);
-  pl->pl_nsec  = htobe32((uint32_t)tv.tv_nsec);
+  pl->pl_sec   = htonll((uint64_t)tv.tv_sec);
+  pl->pl_nsec  = htonl((uint32_t)tv.tv_nsec);
 }
 
 /** Publish datagrams to all requested multicast groups.

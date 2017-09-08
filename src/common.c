@@ -284,3 +284,37 @@ convert_millis(struct timespec* tv, const uint32_t ms)
   tv->tv_sec = ms / 1000;
   tv->tv_nsec = (ms % 1000) * 1000000;
 }
+
+/** Encode a 64-bit unsigned integer for a reliable network transmission.
+ *
+ * @param[in] x integer
+ * @return encoded integer
+**/
+uint64_t
+htonll(const uint64_t x)
+{
+  uint32_t hi;
+  uint32_t lo;
+
+  hi = x >> 32;
+  lo = x & 0xffffffff;
+
+  return (uint64_t)htonl(lo) | ((uint64_t)htonl(hi) << 32);
+}
+
+/** Decode a 64-bit unsigned integer that was transmitted over a network.
+ *
+ * @param[in] x integer
+ * @return encoded integer
+**/
+uint64_t
+ntohll(const uint64_t x)
+{
+  uint32_t hi;
+  uint32_t lo;
+
+  hi = x >> 32;
+  lo = x & 0xffffffff;
+
+  return (uint64_t)ntohl(lo) | ((uint64_t)ntohl(hi) << 32);
+}

@@ -30,7 +30,6 @@
 #include <time.h>
 #include <string.h>
 #include <err.h>
-#include <endian.h>
 
 #include "types.h"
 #include "common.h"
@@ -398,13 +397,13 @@ print_payload_raw(const payload* pl,
 static void
 convert_payload(payload* pl)
 {
-  pl->pl_fver  = be16toh(pl->pl_fver);
-  pl->pl_mport = be16toh(pl->pl_mport);
-  pl->pl_maddr = be32toh(pl->pl_maddr);
-  pl->pl_snum  = be32toh(pl->pl_snum);
-  pl->pl_sid   = be32toh(pl->pl_sid);
-  pl->pl_sec   = be64toh(pl->pl_sec);
-  pl->pl_nsec  = be32toh(pl->pl_nsec);
+  pl->pl_fver  = ntohs(pl->pl_fver);
+  pl->pl_mport = ntohs(pl->pl_mport);
+  pl->pl_maddr = ntohl(pl->pl_maddr);
+  pl->pl_snum  = ntohl(pl->pl_snum);
+  pl->pl_sid   = ntohl(pl->pl_sid);
+  pl->pl_sec   = ntohll(pl->pl_sec);
+  pl->pl_nsec  = ntohl(pl->pl_nsec);
 }
 
 /** Read all incoming datagrams associated with an endpoint.

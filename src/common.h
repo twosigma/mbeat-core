@@ -38,5 +38,7 @@ bool parse_endpoints(endpoint* eps,
 bool allocate_endpoints(endpoint** eps, const int ep_cnt);
 bool cache_hostname(char* hname, const size_t hname_len);
 void convert_millis(struct timespec* tv, const uint32_t ms);
+uint64_t htonll(const uint64_t x);
+uint64_t ntohll(const uint64_t x);
 
 #endif
