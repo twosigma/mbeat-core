@@ -18,26 +18,29 @@
 
 /* Semantic versioning scheme. */
 #define MBEAT_VERSION_MAJOR 1
-#define MBEAT_VERSION_MINOR 1
+#define MBEAT_VERSION_MINOR 2
 #define MBEAT_VERSION_PATCH 0
 
 /* Standard UDP port. */
 #define MBEAT_PORT 22999
 
-#define PAYLOAD_VERSION    1 /* Accepted payload version.            */
+/* Payload-related constants. */
+#define MBEAT_PAYLOAD_MAGIC   0x6d626974
+#define MBEAT_PAYLOAD_VERSION          2
+
 #define ENDPOINT_MAX    2048 /* Maximal number of allowed endpoints. */
 
-bool parse_uint32(uint32_t* out,
+bool parse_uint64(uint64_t* out,
                   const char* str,
-                  const uint32_t min,
-                  const uint32_t max);
+                  const uint64_t min,
+                  const uint64_t max);
 bool parse_endpoints(endpoint* eps,
                      const int ep_idx,
                      char* argv[],
                      const int ep_cnt);
 bool allocate_endpoints(endpoint** eps, const int ep_cnt);
 bool cache_hostname(char* hname, const size_t hname_len);
-void convert_millis(struct timespec* tv, const uint32_t ms);
+void convert_millis(struct timespec* tv, const uint64_t ms);
 uint64_t htonll(const uint64_t x);
 uint64_t ntohll(const uint64_t x);
 

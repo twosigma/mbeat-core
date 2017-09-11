@@ -28,7 +28,7 @@
 #include "common.h"
 
 
-/** Convert a string into an unsigned 32-bit integer.
+/** Convert a string into an unsigned 64-bit integer.
  *
  * @param[out] out resulting integer
  * @param[in]  str string
@@ -38,10 +38,10 @@
  * @return status code
 **/
 bool
-parse_uint32(uint32_t* out,
+parse_uint64(uint64_t* out,
              const char* str,
-             const uint32_t min,
-             const uint32_t max)
+             const uint64_t min,
+             const uint64_t max)
 {
   uintmax_t x;
 
@@ -53,11 +53,11 @@ parse_uint32(uint32_t* out,
   }
 
   if (x < (uintmax_t)min || x > (uintmax_t)max) {
-    warnx("Number %ju out of range (%u..%u)", x, min, max);
+    warnx("Number %ju out of range (%" PRIu64 "..%" PRIu64 ")", x, min, max);
     return false;
   }
 
-  *out = (uint32_t)x;
+  *out = (uint64_t)x;
   return true;
 }
 
@@ -279,7 +279,7 @@ cache_hostname(char* hname, const size_t hname_len)
  * @param[in]  ms milliseconds
 **/
 void
-convert_millis(struct timespec* tv, const uint32_t ms)
+convert_millis(struct timespec* tv, const uint64_t ms)
 {
   tv->tv_sec = ms / 1000;
   tv->tv_nsec = (ms % 1000) * 1000000;

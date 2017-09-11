@@ -97,13 +97,13 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
       /* Receive buffer size. The lowest accepted value is 128, enforcing the
        * same limit as the Linux kernel. */
       case 'b':
-        if (parse_uint32(&opts->so_buf, optarg, 128, UINT32_MAX) == 0)
+        if (parse_uint64(&opts->so_buf, optarg, 128, UINT64_MAX) == 0)
           return false;
         break;
 
       /* Expected number of datagrams to receive. */
       case 'e':
-        if (parse_uint32(&opts->so_exp, optarg, 1, UINT32_MAX) == 0)
+        if (parse_uint64(&opts->so_exp, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
@@ -114,13 +114,13 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
 
       /* Sequence number offset. */
       case 'o':
-        if (parse_uint32(&opts->so_off, optarg, 1, UINT32_MAX) == 0)
+        if (parse_uint64(&opts->so_off, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
       /* UDP port for all endpoints. */
       case 'p':
-        if (parse_uint32(&opts->so_port, optarg, 0, 65535) == 0)
+        if (parse_uint64(&opts->so_port, optarg, 0, 65535) == 0)
           return false;
         break;
 
@@ -131,13 +131,13 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
 
       /* Session ID of the current run. */
       case 's':
-        if (parse_uint32(&opts->so_sid, optarg, 1, UINT32_MAX) == 0)
+        if (parse_uint64(&opts->so_sid, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
       /* Timeout for the process. */
       case 't':
-        if (parse_uint32(&opts->so_tout, optarg, 1, UINT32_MAX) == 0)
+        if (parse_uint64(&opts->so_tout, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
@@ -336,23 +336,32 @@ print_payload_csv(const payload* pl,
                   const char* hname,
                   const sub_options* opts)
 {
-  struct in_addr maddr;
-
-  maddr.s_addr = pl->pl_maddr;
-  printf("%u,%u,%s,%u,%.*s,%.*s,%.*s,%.*s,"
-         "%" PRIu64 ".%.9" PRIu32 ",%ld.%.9ld\n",
-    pl->pl_snum,
+  printf("%" PRIu64 ","                 // SessionID
+         "%" PRIu64 ","                 // SequenceNum
+         "%" PRIu64 ","                 // SequenceLen
+         "%s,"                          // MulticastAddr
+         "%" PRIu64 ","                 // MulticastPort
+         "%" PRIu8  ","                 // SrcTTL
+         "%.*s,"                        // PubInterface
+         "%.*s,"                        // PubHostname
+         "%.*s,"                        // SubInterface
+         "%.*s,"                        // SubHostname
+         "%" PRIu64 ".%.9" PRIu32 ","   // TimeOfDeparture
+         "%" PRIu64 ".%.9" PRIu32 "\n", // TimeOfArrival
     pl->pl_sid,
-    inet_ntoa(maddr),
+    pl->pl_snum,
+    pl->pl_slen,
+    inet_ntoa(ep->ep_maddr),
     opts->so_port,
+    pl->pl_ttl,
     (int)sizeof(pl->pl_iname), pl->pl_iname,
     (int)sizeof(pl->pl_hname), pl->pl_hname,
     (int)sizeof(ep->ep_iname), ep->ep_iname,
     HNAME_LEN, hname,
     pl->pl_sec,
     pl->pl_nsec,
-    tv->tv_sec,
-    tv->tv_nsec);
+    (uint64_t)tv->tv_sec,
+    (uint32_t)tv->tv_nsec);
 }
 
 /** Print the payload content in the raw binary format (big-endian) to the
@@ -368,26 +377,53 @@ static void
 print_payload_raw(const payload* pl,
                   const endpoint* ep,
                   const struct timespec* tv,
-                  const char* hname,
-                  const sub_options* opts)
+                  const char* hname)
 {
   raw_output ro;
 
-  ro.ro_pl.pl_fver  = pl->pl_fver;
-  ro.ro_pl.pl_snum  = pl->pl_snum;
-  ro.ro_pl.pl_sid   = pl->pl_sid;
-  ro.ro_pl.pl_maddr = pl->pl_maddr;
-  ro.ro_pl.pl_mport = opts->so_port;
-  memcpy(ro.ro_pl.pl_iname, pl->pl_iname, sizeof(pl->pl_iname));
-  memcpy(ro.ro_pl.pl_hname, pl->pl_hname, sizeof(pl->pl_hname));
-  ro.ro_pl.pl_sec   = pl->pl_sec;
-  ro.ro_pl.pl_nsec  = pl->pl_nsec;
+  memcpy(&ro.ro_pl, pl, sizeof(*pl));
   memcpy(ro.ro_iname, ep->ep_iname, sizeof(ep->ep_iname));
   memcpy(ro.ro_hname, hname, HNAME_LEN);
-  ro.ro_sec         = (uint64_t)tv->tv_sec;
-  ro.ro_nsec        = (uint32_t)tv->tv_nsec;
+  ro.ro_sec  = ((uint64_t)tv->tv_sec);
+  ro.ro_nsec = ((uint32_t)tv->tv_nsec);
 
   fwrite(&ro, sizeof(ro), 1, stdout);
+}
+
+/** Determine whether to print the payload and choose the method based on the
+ * user-selected options.
+ *
+ * @param[in] pl    payload
+ * @param[in] ep    endpoint
+ * @param[in] hname hostname
+ * @param[in] opts  command-line options
+**/
+static void
+print_payload(payload* pl,
+              const endpoint* ep,
+              const char* hname,
+              const sub_options* opts)
+{
+  struct timespec tv;
+
+  /* Filter out non-matching session IDs. */
+  if (opts->so_sid != 0 && opts->so_sid != pl->pl_sid)
+    return;
+
+  /* Filter out payloads below the offset threshold. */
+  if (opts->so_off > pl->pl_snum)
+    return;
+
+  /* Apply the sequence number offset. */
+  (*pl).pl_snum -= opts->so_off;
+
+  clock_gettime(CLOCK_REALTIME, &tv);
+
+  /* Perform the user-selected type of output. */
+  if (opts->so_raw)
+    print_payload_raw(pl, ep, &tv, hname);
+  else
+    print_payload_csv(pl, ep, &tv, hname, opts);
 }
 
 /** Convert all integers from the big-endian to host byte order.
@@ -397,11 +433,12 @@ print_payload_raw(const payload* pl,
 static void
 convert_payload(payload* pl)
 {
-  pl->pl_fver  = ntohs(pl->pl_fver);
+  pl->pl_magic = ntohl(pl->pl_magic);
   pl->pl_mport = ntohs(pl->pl_mport);
   pl->pl_maddr = ntohl(pl->pl_maddr);
-  pl->pl_snum  = ntohl(pl->pl_snum);
-  pl->pl_sid   = ntohl(pl->pl_sid);
+  pl->pl_sid   = ntohll(pl->pl_sid);
+  pl->pl_snum  = ntohll(pl->pl_snum);
+  pl->pl_slen  = ntohll(pl->pl_slen);
   pl->pl_sec   = ntohll(pl->pl_sec);
   pl->pl_nsec  = ntohl(pl->pl_nsec);
 }
@@ -416,7 +453,7 @@ convert_payload(payload* pl)
  * @return status code
 **/
 static bool
-handle_event(uint32_t* nrecv,
+handle_event(uint64_t* nrecv,
              endpoint* ep,
              const char* hname,
              const sub_options* opts)
@@ -425,7 +462,6 @@ handle_event(uint32_t* nrecv,
   ssize_t nbytes;
   struct sockaddr_in addr;
   socklen_t addr_len;
-  struct timespec tv;
 
   /* Prepare the address for the ingress loop. */
   addr.sin_port   = htons((uint16_t)opts->so_port);
@@ -457,27 +493,21 @@ handle_event(uint32_t* nrecv,
 
     convert_payload(&pl);
 
-    /* Ensure that the format version is supported. */
-    if (pl.pl_fver != PAYLOAD_VERSION) {
-      warnx("Unsupported payload version, expected: %u, got: %u",
-            PAYLOAD_VERSION, pl.pl_fver);
+    /* Verify the magic number of the payload. */
+    if (pl.pl_magic != MBEAT_PAYLOAD_MAGIC) {
+      warnx("Payload magic number invalid, expected: %u, got: %u",
+            MBEAT_PAYLOAD_MAGIC, pl.pl_magic);
       continue;
     }
 
-    /* Print the contents of the payload in the selected format. */
-    if ((opts->so_sid == 0 || opts->so_sid == pl.pl_sid)
-      && pl.pl_snum >= opts->so_off) {
-
-      clock_gettime(CLOCK_REALTIME, &tv);
-
-      /* Apply the sequence number offset. */
-      pl.pl_snum -= opts->so_off;
-
-      if (opts->so_raw)
-        print_payload_raw(&pl, ep, &tv, hname, opts);
-      else
-        print_payload_csv(&pl, ep, &tv, hname, opts);
+    /* Ensure that the format version is supported. */
+    if (pl.pl_fver != MBEAT_PAYLOAD_VERSION) {
+      warnx("Unsupported payload version, expected: %u, got: %u",
+            MBEAT_PAYLOAD_VERSION, pl.pl_fver);
+      continue;
     }
+
+    print_payload(&pl, ep, hname, opts);
 
     /* Successfully received a datagram. */
     (*nrecv)++;
@@ -504,7 +534,7 @@ receive_datagrams(const int epfd,
                   const sub_options* opts)
 {
   struct epoll_event evs[64];
-  uint32_t nrecv;
+  uint64_t nrecv;
   int ev_cnt;
   int i;
 
@@ -512,9 +542,9 @@ receive_datagrams(const int epfd,
 
   /* Print the CSV header. */
   if (!opts->so_raw)
-    printf("SequenceNum,SessionID,MulticastAddr,MulticastPort,PubInterface,"
-           "PubHostname,SubInterface,SubHostname,TimeOfDeparture,"
-           "TimeOfArrival\n");
+    printf("SessionID,SequenceNum,SequenceLen,MulticastAddr,MulticastPort,"
+           "SrcTTL,PubInterface,PubHostname,SubInterface,SubHostname,"
+           "TimeOfDeparture,TimeOfArrival\n");
 
   /* Receive datagrams on all initialized connections. */
   while (1) {

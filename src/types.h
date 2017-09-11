@@ -16,20 +16,23 @@
 #define INAME_LEN 16 /* Maximal interface name length. */
 #define HNAME_LEN 64 /* Maximal hostname length.       */
 
-/** Payload of the datagram (108 bytes). */
+/** Payload of the datagram (128 bytes). */
 typedef struct _payload {
-  uint16_t pl_fver;             /**< Format version.                  */
+  uint32_t pl_magic;            /**< Magic identifier.                */
+  uint8_t  pl_fver;             /**< Format version.                  */
+  uint8_t  pl_ttl;              /**< Source Time-To-Live.             */
   uint16_t pl_mport;            /**< Multicast IPv4 port.             */
   uint32_t pl_maddr;            /**< Multicast IPv4 address.          */
-  uint32_t pl_snum;             /**< Sequence number.                 */
-  uint32_t pl_sid;              /**< Session ID.                      */
+  uint32_t pl_nsec;             /**< Time of departure - nanoseconds. */
+  uint64_t pl_sec;              /**< Time of departure - seconds.     */
+  uint64_t pl_sid;              /**< Sequence ID.                     */
+  uint64_t pl_snum;             /**< Sequence iteration counter.      */
+  uint64_t pl_slen;             /**< Sequence length.                 */
   char     pl_iname[INAME_LEN]; /**< Publisher's interface name.      */
   char     pl_hname[HNAME_LEN]; /**< Publisher's hostname.            */
-  uint64_t pl_sec;              /**< Time of departure - seconds.     */
-  uint32_t pl_nsec;             /**< Time of departure - nanoseconds. */
 } payload;
 
-/** Raw binary output format (196 bytes). */
+/** Raw binary output format (220 bytes). */
 typedef struct _raw_output {
   payload  ro_pl;               /**< Received payload.              */
   char     ro_iname[INAME_LEN]; /**< Subscriber's interface name.   */
@@ -48,23 +51,23 @@ typedef struct _endpoint {
 
 /** Command-line options of the publisher utility. */
 typedef struct _pub_options {
-  uint32_t po_buf;  /**< Socket send buffer size in bytes.      */
-  uint32_t po_cnt;  /**< Number of published datagrams.         */
-  uint32_t po_int;  /**< Wait time between published datagrams. */
-  uint32_t po_ttl;  /**< Time-To-Live for published datagrams.  */
-  uint32_t po_sid;  /**< Session ID of the current run.         */
-  uint32_t po_port; /**< UDP port for all endpoints.            */
+  uint64_t po_buf;  /**< Socket send buffer size in bytes.      */
+  uint64_t po_cnt;  /**< Number of published datagrams.         */
+  uint64_t po_int;  /**< Wait time between published datagrams. */
+  uint64_t po_ttl;  /**< Time-To-Live for published datagrams.  */
+  uint64_t po_sid;  /**< Session ID of the current run.         */
+  uint64_t po_port; /**< UDP port for all endpoints.            */
   uint8_t  po_lop;  /**< Datagram looping on localhost.         */
 } pub_options;
 
 /** Command-line options of the subscriber utility. */
 typedef struct _sub_options {
-  uint32_t so_tout; /**< Execution timeout in milliseconds.              */
-  uint32_t so_buf;  /**< Socket receive buffer size in bytes.            */
-  uint32_t so_sid;  /**< Session ID filter of received datagrams.        */
-  uint32_t so_exp;  /**< Quit after expected number of packets arrive.   */
-  uint32_t so_off;  /**< Sequence number offset.                         */
-  uint32_t so_port; /**< UDP port for all endpoints.                     */
+  uint64_t so_tout; /**< Execution timeout in milliseconds.              */
+  uint64_t so_buf;  /**< Socket receive buffer size in bytes.            */
+  uint64_t so_sid;  /**< Session ID filter of received datagrams.        */
+  uint64_t so_exp;  /**< Quit after expected number of packets arrive.   */
+  uint64_t so_off;  /**< Sequence number offset.                         */
+  uint64_t so_port; /**< UDP port for all endpoints.                     */
   uint8_t  so_raw;  /**< Output received datagrams in raw binary format. */
   uint8_t  so_unb;  /**< Turn off buffering on the output stream.        */
 } sub_options;

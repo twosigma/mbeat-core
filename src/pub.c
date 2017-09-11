@@ -61,12 +61,12 @@ print_usage(void)
 
 /** Generate a random session ID.
  *
- * @return random 32-bit integer (non-zero)
+ * @return random 64-bit unsigned integer (non-zero)
 **/
-static uint32_t
+static uint64_t
 generate_sid(void)
 {
-  uint32_t sid;
+  uint64_t sid;
 
   /* Seed the psuedo-random number generator. The generated session ID is not
    * intended to be cryptographically safe - it is just intended to prevent
@@ -80,7 +80,7 @@ generate_sid(void)
    * is internally used to represent the state where no filtering of session
    * IDs is performed by the subscriber process. */
   do {
-    sid = (uint32_t)lrand48();
+    sid = (uint64_t)lrand48() | ((uint64_t)lrand48() << 32);
   } while (sid == 0);
 
   return sid;
@@ -116,13 +116,13 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
       /* Send buffer size. The lowest accepted value is 1024, enforcing the
        * same limit as the Linux kernel. */
       case 'b':
-        if (parse_uint32(&opts->po_buf, optarg, 1024, UINT32_MAX) == 0)
+        if (parse_uint64(&opts->po_buf, optarg, 1024, UINT64_MAX) == 0)
           return false;
         break;
 
       /* Number of published datagrams. */
       case 'c':
-        if (parse_uint32(&opts->po_cnt, optarg, 1, UINT32_MAX) == 0)
+        if (parse_uint64(&opts->po_cnt, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
@@ -133,7 +133,7 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
 
       /* Wait interval between datagrams in milliseconds. */
       case 'i':
-        if (parse_uint32(&opts->po_int, optarg, 0, UINT32_MAX) == 0)
+        if (parse_uint64(&opts->po_int, optarg, 0, UINT64_MAX) == 0)
           return false;
         break;
 
@@ -144,19 +144,19 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
 
       /* UDP port for all endpoints. */
       case 'p':
-        if (parse_uint32(&opts->po_port, optarg, 0, 65535) == 0)
+        if (parse_uint64(&opts->po_port, optarg, 0, 65535) == 0)
           return false;
         break;
 
       /* Session ID of the current run. */
       case 's':
-        if (parse_uint32(&opts->po_sid, optarg, 1, UINT32_MAX) == 0)
+        if (parse_uint64(&opts->po_sid, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
       /* Time-To-Live for published datagrams. */
       case 't':
-        if (parse_uint32(&opts->po_ttl, optarg, 0, 255) == 0)
+        if (parse_uint64(&opts->po_ttl, optarg, 0, 255) == 0)
           return false;
         break;
 
@@ -265,11 +265,14 @@ fill_payload(payload* pl,
 
   memset(pl, 0, sizeof(*pl));
 
-  pl->pl_fver  = htons(PAYLOAD_VERSION);
-  pl->pl_snum  = htonl(snum);
-  pl->pl_sid   = htonl(opts->po_sid);
-  pl->pl_maddr = htonl(ep->ep_maddr.s_addr);
+  pl->pl_magic = htonl(MBEAT_PAYLOAD_MAGIC);
+  pl->pl_fver  = MBEAT_PAYLOAD_VERSION;
+  pl->pl_ttl   = opts->po_ttl;
   pl->pl_mport = htons(opts->po_port);
+  pl->pl_maddr = htonl(ep->ep_maddr.s_addr);
+  pl->pl_sid   = htonll(opts->po_sid);
+  pl->pl_snum  = htonll(snum);
+  pl->pl_slen  = htonll(opts->po_cnt);
   memcpy(pl->pl_iname, ep->ep_iname, sizeof(pl->pl_iname));
   memcpy(pl->pl_hname, hname, sizeof(pl->pl_hname));
 
@@ -293,7 +296,7 @@ publish_datagrams(endpoint* eps,
                   const char* hname,
                   const pub_options* opts)
 {
-  uint32_t c;
+  uint64_t c;
   int i;
   payload pl;
   struct timespec ts;
