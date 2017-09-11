@@ -13,10 +13,10 @@ all: bin/mbeat_pub bin/mbeat_sub
 
 # executables
 bin/mbeat_pub: obj/pub.o obj/common.o
-	$(CC) $(LDFLAGS) obj/pub.o obj/common.o -o bin/mbeat_pub
+	$(CC) obj/pub.o obj/common.o -o bin/mbeat_pub $(LDFLAGS)
 
 bin/mbeat_sub: obj/sub.o obj/common.o
-	$(CC) $(LDFLAGS) obj/sub.o obj/common.o -o bin/mbeat_sub
+	$(CC) obj/sub.o obj/common.o -o bin/mbeat_sub $(LDFLAGS)
 
 # object files
 obj/common.o: src/common.c
