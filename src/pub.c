@@ -103,14 +103,14 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
   int opt;
 
   /* Set optional arguments to sensible defaults. */
-  opts->po_buf = DEF_BUFFER_SIZE;
-  opts->po_cnt = DEF_COUNT;
-  opts->po_int = DEF_INTERVAL;
-  opts->po_ttl = DEF_TIME_TO_LIVE;
-  opts->po_err = DEF_ERROR;
-  opts->po_lop = DEF_LOOP;
+  opts->po_buf  = DEF_BUFFER_SIZE;
+  opts->po_cnt  = DEF_COUNT;
+  opts->po_int  = DEF_INTERVAL;
+  opts->po_ttl  = DEF_TIME_TO_LIVE;
+  opts->po_err  = DEF_ERROR;
+  opts->po_lop  = DEF_LOOP;
   opts->po_port = MBEAT_PORT;
-  opts->po_sid = generate_sid();
+  opts->po_sid  = generate_sid();
 
   while ((opt = getopt(argc, argv, "b:c:ehi:lp:s:t:")) != -1) {
     switch (opt) {
