@@ -34,6 +34,7 @@
 #define DEF_COUNT           5 /* Number of published datagrams.        */
 #define DEF_INTERVAL     1000 /* Publishing interval in milliseconds.  */
 #define DEF_TIME_TO_LIVE    1 /* Time-To-Live for published datagrams. */
+#define DEF_ERROR           0 /* Process exit on publishing error.     */
 #define DEF_LOOP            0 /* Looping policy on localhost.          */
 
 /** Print the utility usage information to the standard output. */
@@ -106,11 +107,12 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
   opts->po_cnt = DEF_COUNT;
   opts->po_int = DEF_INTERVAL;
   opts->po_ttl = DEF_TIME_TO_LIVE;
+  opts->po_err = DEF_ERROR;
   opts->po_lop = DEF_LOOP;
   opts->po_port = MBEAT_PORT;
   opts->po_sid = generate_sid();
 
-  while ((opt = getopt(argc, argv, "b:c:hi:lp:s:t:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:ehi:lp:s:t:")) != -1) {
     switch (opt) {
 
       /* Send buffer size. The lowest accepted value is 1024, enforcing the
@@ -124,6 +126,11 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
       case 'c':
         if (parse_uint64(&opts->po_cnt, optarg, 1, UINT64_MAX) == 0)
           return false;
+        break;
+
+      /* Process exit on publish error. */
+      case 'e':
+        opts->po_err = 1;
         break;
 
       /* Usage information. */
@@ -320,7 +327,9 @@ publish_datagrams(endpoint* eps,
                  (struct sockaddr*)&addr, sizeof(addr)) // address
                  == -1) {
         warn("Unable to send datagram");
-        return false;
+
+        if (opts->po_err == 1)
+          return false;
       }
     }
 

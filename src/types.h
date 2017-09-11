@@ -57,6 +57,7 @@ typedef struct _pub_options {
   uint64_t po_ttl;  /**< Time-To-Live for published datagrams.  */
   uint64_t po_sid;  /**< Session ID of the current run.         */
   uint64_t po_port; /**< UDP port for all endpoints.            */
+  uint8_t  po_err;  /**< Process exit on publishing error.      */
   uint8_t  po_lop;  /**< Datagram looping on localhost.         */
 } pub_options;
 
