@@ -41,23 +41,27 @@
 static void
 print_usage(void)
 {
-  fprintf(stderr, "multicast heartbeat publisher - send datagrams to selected"
-                  " network endpoints - v%d.%d.%d\n\n", MBEAT_VERSION_MAJOR,
-                  MBEAT_VERSION_MINOR, MBEAT_VERSION_PATCH);
-  fprintf(stderr, "mbeat_pub [-b BSZ] [-c CNT] [-h] [-i MS] [-l] [-p PORT]"
-                  " [-s SID] [-t TTL] iface=maddr [iface=maddr ...]\n");
-  fprintf(stderr, "  -b BSZ  Send buffer size in bytes.\n");
-  fprintf(stderr, "  -c CNT  Publish exactly CNT datagrams."
-                  " (def=%d)\n", DEF_COUNT);
-  fprintf(stderr, "  -h      Print this help message.\n");
-  fprintf(stderr, "  -i MS   Interval between published datagrams in"
-                  " milliseconds. (def=%d)\n", DEF_INTERVAL);
-  fprintf(stderr, "  -l      Turn on datagram looping.\n");
-  fprintf(stderr, "  -p PORT UDP port to use for all endpoints."
-		  " (def=%d)\n", MBEAT_PORT);
-  fprintf(stderr, "  -s SID  Session ID for the current run. (def=random)\n");
-  fprintf(stderr, "  -t TTL  Set the Time-To-Live for all published datagrams."
-                  " (def=%d)\n", DEF_TIME_TO_LIVE);
+  fprintf(stderr,
+    "multicast heartbeat publisher - send datagrams to selected\n"
+    "network endpoints - v%d.%d.%d\n\n"
+
+    "mbeat_pub [-b BSZ] [-c CNT] [-h] [-i MS] [-l] [-p PORT]\n"
+    "          [-s SID] [-t TTL] iface=maddr [iface=maddr ...]\n\n"
+    "  -b BSZ  Send buffer size in bytes.\n"
+    "  -c CNT  Publish exactly CNT datagrams. (def=%d)\n"
+    "  -h      Print this help message.\n"
+    "  -i MS   Interval between published datagrams in milliseconds. (def=%d)\n"
+    "  -l      Turn on datagram looping.\n"
+    "  -p PORT UDP port to use for all endpoints. (def=%d)\n"
+    "  -s SID  Session ID for the current run. (def=random)\n"
+    "  -t TTL  Set the Time-To-Live for all published datagrams. (def=%d)\n",
+    MBEAT_VERSION_MAJOR,
+    MBEAT_VERSION_MINOR,
+    MBEAT_VERSION_PATCH,
+    DEF_COUNT,
+    DEF_INTERVAL,
+    MBEAT_PORT,
+    DEF_TIME_TO_LIVE);
 }
 
 /** Generate a random session ID.

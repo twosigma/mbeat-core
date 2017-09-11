@@ -48,22 +48,27 @@
 static void
 print_usage(void)
 {
-  fprintf(stderr, "multicast heartbeat subscriber - receive datagrams from"
-                  " selected network endpoints - v%d.%d.%d\n\n",
-                  MBEAT_VERSION_MAJOR, MBEAT_VERSION_MINOR,
-                  MBEAT_VERSION_PATCH);
-  fprintf(stderr, "mbeat_sub [-b BSZ] [-e CNT] [-h] [-o OFF] [-p PORT] [-r]"
-                  " [-s SID] [-t MS] [-u] iface=maddr [iface=maddr ...]\n");
-  fprintf(stderr, "  -b BSZ  Receive buffer size in bytes.\n");
-  fprintf(stderr, "  -e CNT  Quit after CNT datagrams were received.\n");
-  fprintf(stderr, "  -h      Print this help message.\n");
-  fprintf(stderr, "  -o OFF  Ignore payloads with lesser sequence number.\n");
-  fprintf(stderr, "  -p PORT UDP port for all endpoints. (def=%d)\n",
-                  MBEAT_PORT);
-  fprintf(stderr, "  -r      Output the data in raw binary format.\n");
-  fprintf(stderr, "  -s SID  Only report datagrams with this session ID.\n");
-  fprintf(stderr, "  -t MS   Timeout of the process after MS milliseconds.\n");
-  fprintf(stderr, "  -u      Disable output buffering.\n");
+  fprintf(stderr,
+    "multicast heartbeat subscriber - receive datagrams from selected\n"
+    "network endpoints - v%d.%d.%d\n\n"
+
+    "mbeat_sub [-b BSZ] [-e CNT] [-h] [-o OFF] [-p PORT] [-r]\n"
+    "          [-s SID] [-t MS] [-u] iface=maddr [iface=maddr ...]\n\n"
+
+    "  -b BSZ  Receive buffer size in bytes.\n"
+    "  -e CNT  Quit after CNT datagrams were received.\n"
+    "  -h      Print this help message.\n"
+    "  -o OFF  Ignore payloads with lesser sequence number. (def=%d)\n"
+    "  -p PORT UDP port for all endpoints. (def=%d)\n"
+    "  -r      Output the data in raw binary format.\n"
+    "  -s SID  Only report datagrams with this session ID.\n"
+    "  -t MS   Timeout of the process after MS milliseconds.\n"
+    "  -u      Disable output buffering.\n",
+    MBEAT_VERSION_MAJOR,
+    MBEAT_VERSION_MINOR,
+    MBEAT_VERSION_PATCH,
+    DEF_OFFSET,
+    MBEAT_PORT);
 }
 
 /** Parse the command-line options.
