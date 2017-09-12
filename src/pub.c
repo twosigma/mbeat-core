@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/uio.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -309,9 +310,12 @@ publish_datagrams(endpoint* eps,
 {
   uint64_t c;
   int i;
+  ssize_t ret;
   payload pl;
   struct timespec ts;
   struct sockaddr_in addr;
+  struct msghdr msg;
+  struct iovec data;
 
   convert_millis(&ts, opts->po_int);
 
@@ -324,12 +328,24 @@ publish_datagrams(endpoint* eps,
     for (i = 0; i < ep_cnt; i++) {
       fill_payload(&pl, &eps[i], c, hname, opts);
 
+      /* Set the multicast address. */
       addr.sin_addr.s_addr = eps[i].ep_maddr.s_addr;
-      if (sendto(eps[i].ep_sock,                        // socket
-                 &pl, sizeof(pl),                       // payload
-                 MSG_DONTWAIT,                          // flags
-                 (struct sockaddr*)&addr, sizeof(addr)) // address
-                 == -1) {
+
+      /* Prepare payload data. */
+      data.iov_base = &pl;
+      data.iov_len  = sizeof(pl);
+
+      /* Prepare the message. */
+      msg.msg_name       = &addr;
+      msg.msg_namelen    = sizeof(addr);
+      msg.msg_iov        = &data;
+      msg.msg_iovlen     = 1;
+      msg.msg_control    = NULL;
+      msg.msg_controllen = 0;
+
+      /* Send the payload. */
+      ret = sendmsg(eps[i].ep_sock, &msg, MSG_DONTWAIT);
+      if (ret == 0) {
         warn("Unable to send datagram");
 
         if (opts->po_err == 1)

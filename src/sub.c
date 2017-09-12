@@ -11,6 +11,7 @@
 #include <sys/epoll.h>
 #include <sys/time.h>
 #include <sys/signalfd.h>
+#include <sys/uio.h>
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -203,6 +204,13 @@ create_sockets(endpoint* eps, const int ep_cnt, const sub_options* opts)
       return false;
     }
 
+    /* Request the Time-To-Live property of each incoming datagram. */
+    if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_RECVTTL,
+                   &enable, sizeof(enable)) == -1) {
+      warn("Unable to request Time-To-Live information");
+      return false;
+    }
+
     /* Set the socket receive buffer size to the requested value. */
     if (opts->so_buf != 0) {
       buf_size = (int)opts->so_buf;
@@ -333,20 +341,31 @@ create_signal_event(int* sigfd, const int epfd, const sub_options* opts)
  * @param[in] ep    connection endpoint
  * @param[in] tv    packet arrival time
  * @param[in] hname hostname
+ * @param[in] ttl   Time-To-Live value upon arrival
+ * @param[in] opts  command-line options
 **/
 static void
 print_payload_csv(const payload* pl,
                   const endpoint* ep,
                   const struct timespec* tv,
                   const char* hname,
+                  const int ttl,
                   const sub_options* opts)
 {
+  char ttl_str[8];
+
+  if (0 <= ttl && ttl <= 255)
+    snprintf(ttl_str, sizeof(ttl_str), "%d", ttl);
+  else
+    strcpy(ttl_str, "N/A");
+
   printf("%" PRIu64 ","                 // SessionID
          "%" PRIu64 ","                 // SequenceNum
          "%" PRIu64 ","                 // SequenceLen
          "%s,"                          // MulticastAddr
          "%" PRIu64 ","                 // MulticastPort
          "%" PRIu8  ","                 // SrcTTL
+         "%s,"                          // DstTTL
          "%.*s,"                        // PubInterface
          "%.*s,"                        // PubHostname
          "%.*s,"                        // SubInterface
@@ -359,6 +378,7 @@ print_payload_csv(const payload* pl,
     inet_ntoa(ep->ep_maddr),
     opts->so_port,
     pl->pl_ttl,
+    ttl_str,
     (int)sizeof(pl->pl_iname), pl->pl_iname,
     (int)sizeof(pl->pl_hname), pl->pl_hname,
     (int)sizeof(ep->ep_iname), ep->ep_iname,
@@ -407,6 +427,7 @@ static void
 print_payload(payload* pl,
               const endpoint* ep,
               const char* hname,
+              const int ttl,
               const sub_options* opts)
 {
   struct timespec tv;
@@ -428,7 +449,7 @@ print_payload(payload* pl,
   if (opts->so_raw)
     print_payload_raw(pl, ep, &tv, hname);
   else
-    print_payload_csv(pl, ep, &tv, hname, opts);
+    print_payload_csv(pl, ep, &tv, hname, ttl, opts);
 }
 
 /** Convert all integers from the big-endian to host byte order.
@@ -448,6 +469,29 @@ convert_payload(payload* pl)
   pl->pl_nsec  = ntohl(pl->pl_nsec);
 }
 
+/** Traverse the control messages and obtain the received Time-To-Live value.
+ *
+ * @param[out] ttl Time-To-Live value
+ * @param[in]  msg received message
+ *
+ * @return status code
+**/
+static bool
+retrieve_ttl(int* ttl, struct msghdr* msg)
+{
+  struct cmsghdr* cmsg;
+
+  for (cmsg = CMSG_FIRSTHDR(msg); cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+    if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TTL) {
+      *ttl = *(int*)CMSG_DATA(cmsg);
+      return true;
+    }
+  }
+
+  *ttl = -1;
+  return false;
+}
+
 /** Read all incoming datagrams associated with an endpoint.
  *
  * @param[out] nrecv overall number of received datagrams
@@ -464,9 +508,12 @@ handle_event(uint64_t* nrecv,
              const sub_options* opts)
 {
   payload pl;
+  int ttl;
   ssize_t nbytes;
   struct sockaddr_in addr;
-  socklen_t addr_len;
+  struct msghdr msg;
+  struct iovec data;
+  char cdata[128];
 
   /* Prepare the address for the ingress loop. */
   addr.sin_port   = htons((uint16_t)opts->so_port);
@@ -474,12 +521,20 @@ handle_event(uint64_t* nrecv,
 
   /* Loop through all available datagrams on the socket. */
   while (1) {
+    /* Prepare payload data. */
+    data.iov_base = &pl;
+    data.iov_len  = sizeof(pl);
+
+    /* Prepare the message. */
+    msg.msg_name       = &addr;
+    msg.msg_namelen    = sizeof(addr);
+    msg.msg_iov        = &data;
+    msg.msg_iovlen     = 1;
+    msg.msg_control    = cdata;
+    msg.msg_controllen = sizeof(cdata);
+
     /* Read an incoming datagram. */
-    addr_len = (socklen_t)sizeof(struct sockaddr_in*);
-    nbytes = recvfrom(ep->ep_sock,                         // socket
-                      &pl, sizeof(pl),                     // payload
-                      MSG_TRUNC | MSG_DONTWAIT,            // flags
-                      (struct sockaddr*)&addr, &addr_len); // address
+    nbytes = recvmsg(ep->ep_sock, &msg, MSG_TRUNC | MSG_DONTWAIT);
     if (nbytes == -1) {
       /* Exit the reading loop if there are no more datagrams to process. */
       if (errno == EAGAIN)
@@ -495,6 +550,8 @@ handle_event(uint64_t* nrecv,
       warnx("Wrong payload size, expected: %zu, got: %zd", sizeof(pl), nbytes);
       continue;
     }
+
+    retrieve_ttl(&ttl, &msg);
 
     convert_payload(&pl);
 
@@ -512,7 +569,7 @@ handle_event(uint64_t* nrecv,
       continue;
     }
 
-    print_payload(&pl, ep, hname, opts);
+    print_payload(&pl, ep, hname, ttl, opts);
 
     /* Successfully received a datagram. */
     (*nrecv)++;
@@ -548,7 +605,7 @@ receive_datagrams(const int epfd,
   /* Print the CSV header. */
   if (!opts->so_raw)
     printf("SessionID,SequenceNum,SequenceLen,MulticastAddr,MulticastPort,"
-           "SrcTTL,PubInterface,PubHostname,SubInterface,SubHostname,"
+           "SrcTTL,DstTTL,PubInterface,PubHostname,SubInterface,SubHostname,"
            "TimeOfDeparture,TimeOfArrival\n");
 
   /* Receive datagrams on all initialized connections. */
