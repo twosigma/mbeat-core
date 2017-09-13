@@ -1,10 +1,8 @@
-/*
- *  Copyright (c) 2017 Two Sigma Open Source, LLC.
- *  All Rights Reserved
- *
- *  Distributed under the terms of the 2-clause BSD License. The full
- *  license is in the file LICENSE, distributed as part of this software.
-**/
+// Copyright (c) 2017 Two Sigma Open Source, LLC.
+// All Rights Reserved
+//
+// Distributed under the terms of the 2-clause BSD License. The full
+// license is in the file LICENSE, distributed as part of this software.
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -36,16 +34,16 @@
 #include "common.h"
 
 
-/* Default values for optional arguments. */
-#define DEF_TIMEOUT      0 /* Zero denotes no timeout is applied.           */
-#define DEF_BUFFER_SIZE  0 /* Zero denotes the system default.              */
-#define DEF_SESSION_ID   0 /* Zero denotes no session ID filtering.         */
-#define DEF_EXPECT_COUNT 0 /* Zero denotes no particular count is expected. */
-#define DEF_OFFSET       0 /* Sequence numbers have no offset by default.   */
-#define DEF_RAW_OUTPUT   0 /* Raw binary output is disabled by default.     */
-#define DEF_UNBUFFERED   0 /* Unbuffered output is disabled by default.     */
+// Default values for optional arguments.
+#define DEF_TIMEOUT      0 // Zero denotes no timeout is applied.
+#define DEF_BUFFER_SIZE  0 // Zero denotes the system default.
+#define DEF_SESSION_ID   0 // Zero denotes no session ID filtering.
+#define DEF_EXPECT_COUNT 0 // Zero denotes no particular count is expected.
+#define DEF_OFFSET       0 // Sequence numbers have no offset by default.
+#define DEF_RAW_OUTPUT   0 // Raw binary output is disabled by default.
+#define DEF_UNBUFFERED   0 // Unbuffered output is disabled by default.
 
-/** Print the utility usage information to the standard output. */
+/// Print the utility usage information to the standard output.
 static void
 print_usage(void)
 {
@@ -72,22 +70,20 @@ print_usage(void)
     MBEAT_PORT);
 }
 
-/** Parse the command-line options.
- *
- * @param[out] ep_cnt endpoint count
- * @param[out] ep_idx endpoint start index 
- * @param[out] opts   command-line options
- * @param[in]  argc   argument count
- * @param[in]  argv   argument vector
- *
- * @return status code
-**/
+/// Parse the command-line options.
+/// @return status code
+///
+/// @param[out] ep_cnt endpoint count
+/// @param[out] ep_idx endpoint start index 
+/// @param[out] opts   command-line options
+/// @param[in]  argc   argument count
+/// @param[in]  argv   argument vector
 static bool 
 parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
 {
   int opt;
 
-  /* Set optional arguments to sensible defaults. */
+  // Set optional arguments to sensible defaults.
   opts->so_tout = DEF_TIMEOUT;
   opts->so_buf  = DEF_BUFFER_SIZE;
   opts->so_sid  = DEF_SESSION_ID;
@@ -100,65 +96,65 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
   while ((opt = getopt(argc, argv, "b:e:ho:p:rs:t:u")) != -1) {
     switch (opt) {
 
-      /* Receive buffer size. The lowest accepted value is 128, enforcing the
-       * same limit as the Linux kernel. */
+      // Receive buffer size. The lowest accepted value is 128, enforcing the
+      // same limit as the Linux kernel.
       case 'b':
         if (parse_uint64(&opts->so_buf, optarg, 128, UINT64_MAX) == 0)
           return false;
         break;
 
-      /* Expected number of datagrams to receive. */
+      // Expected number of datagrams to receive.
       case 'e':
         if (parse_uint64(&opts->so_exp, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
-      /* Usage information. */
+      // Usage information.
       case 'h':
         print_usage();
         return false;
 
-      /* Sequence number offset. */
+      // Sequence number offset.
       case 'o':
         if (parse_uint64(&opts->so_off, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
-      /* UDP port for all endpoints. */
+      // UDP port for all endpoints.
       case 'p':
         if (parse_uint64(&opts->so_port, optarg, 0, 65535) == 0)
           return false;
         break;
 
-      /* Raw binary output option. */
+      // Raw binary output option.
       case 'r':
         opts->so_raw = 1;
         break;
 
-      /* Session ID of the current run. */
+      // Session ID of the current run.
       case 's':
         if (parse_uint64(&opts->so_sid, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
-      /* Timeout for the process. */
+      // Timeout for the process.
       case 't':
         if (parse_uint64(&opts->so_tout, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
-      /* Unbuffered output option. */
+      // Unbuffered output option.
       case 'u':
         opts->so_unb = 1;
         break;
 
-      /* Unknown option. */
+      // Unknown option.
       case '?':
         warnx("Invalid option '%c'", optopt);
         print_usage();
         return false;
 
-      /* Unknown situation. */
+      // Unknown situation.
       default:
         print_usage();
         return false;
@@ -171,14 +167,12 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
   return true;
 }
 
-/** Create endpoint sockets and apply the interface settings.
- *
- * @param[in] eps    endpoint array
- * @param[in] ep_cnt number of endpoint entries
- * @param[in] opts   command-line options
- *
- * @return status code
-**/
+/// Create endpoint sockets and apply the interface settings.
+/// @return status code
+///
+/// @param[in] eps    endpoint array
+/// @param[in] ep_cnt number of endpoint entries
+/// @param[in] opts   command-line options
 static bool 
 create_sockets(endpoint* eps, const int ep_cnt, const sub_options* opts)
 {
@@ -197,21 +191,21 @@ create_sockets(endpoint* eps, const int ep_cnt, const sub_options* opts)
       return false;
     }
 
-    /* Enable multiple sockets being bound to the same address/port. */
+    // Enable multiple sockets being bound to the same address/port.
     if (setsockopt(eps[i].ep_sock, SOL_SOCKET, SO_REUSEADDR,
                    &enable, sizeof(enable)) == -1) {
       warn("Unable to make the socket address reusable");
       return false;
     }
 
-    /* Request the Time-To-Live property of each incoming datagram. */
+    // Request the Time-To-Live property of each incoming datagram.
     if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_RECVTTL,
                    &enable, sizeof(enable)) == -1) {
       warn("Unable to request Time-To-Live information");
       return false;
     }
 
-    /* Set the socket receive buffer size to the requested value. */
+    // Set the socket receive buffer size to the requested value.
     if (opts->so_buf != 0) {
       buf_size = (int)opts->so_buf;
       if (setsockopt(eps[i].ep_sock, SOL_SOCKET, SO_RCVBUF,
@@ -226,13 +220,13 @@ create_sockets(endpoint* eps, const int ep_cnt, const sub_options* opts)
     addr.sin_port   = htons((uint16_t)opts->so_port);
     addr.sin_addr   = eps[i].ep_maddr;
 
-    /* Bind the socket to the multicast group. */
+    // Bind the socket to the multicast group.
     if (bind(eps[i].ep_sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
       warn("Unable to bind to address %s", mcast_str);
       return false;
     }
 
-    /* Subscribe the socket to the multicast group. */
+    // Subscribe the socket to the multicast group.
     req.imr_interface.s_addr = eps[i].ep_iaddr.s_addr;
     req.imr_multiaddr.s_addr = eps[i].ep_maddr.s_addr;
     if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
@@ -245,12 +239,10 @@ create_sockets(endpoint* eps, const int ep_cnt, const sub_options* opts)
   return true;
 }
 
-/** Create the event queue.
- *
- * @param[out] epfd event queue
- *
- * @return status code
-**/
+/// Create the event queue.
+/// @return status code
+///
+/// @param[out] epfd event queue
 static bool
 create_event_queue(int* epfd)
 {
@@ -263,23 +255,21 @@ create_event_queue(int* epfd)
   return true;
 }
 
-/** Add the socket associated with each endpoint to the event queue.
- *
- * @param[in] epfd   event queue
- * @param[in] eps    endpoint array
- * @param[in] ep_cnt number of endpoint entries
- *
- * @return status code
-**/
+/// Add the socket associated with each endpoint to the event queue.
+/// @return status code
+///
+/// @param[in] epfd   event queue
+/// @param[in] eps    endpoint array
+/// @param[in] ep_cnt number of endpoint entries
 static bool
 create_socket_events(const int epfd, endpoint* eps, const int ep_cnt)
 {
   struct epoll_event ev;
   int i;
 
-  /* Add all sockets to the event queue. The auxiliary data pointer should
-   * point at the endpoint structure, so that all relevant data can be
-   * accessed when the event is triggered. */
+  // Add all sockets to the event queue. The auxiliary data pointer should
+  // point at the endpoint structure, so that all relevant data can be
+  // accessed when the event is triggered.
   for (i = 0; i < ep_cnt; i++) {
     ev.events = EPOLLIN;
     ev.data.ptr = &eps[i];
@@ -293,14 +283,12 @@ create_socket_events(const int epfd, endpoint* eps, const int ep_cnt)
   return true;
 }
 
-/** Create a new signal file descriptor and add it to the event queue.
- *
- * @param[out] sigfd signal file descriptor
- * @param[in]  epfd  epoll(2) file descriptor
- * @param[in]  opts  command-line options
- *
- * @return status code
-**/
+/// Create a new signal file descriptor and add it to the event queue.
+/// @return status code
+///
+/// @param[out] sigfd signal file descriptor
+/// @param[in]  epfd  epoll(2) file descriptor
+/// @param[in]  opts  command-line options
 static bool 
 create_signal_event(int* sigfd, const int epfd, const sub_options* opts)
 {
@@ -308,23 +296,23 @@ create_signal_event(int* sigfd, const int epfd, const sub_options* opts)
   sigset_t mask;
 
   sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);    /* User-generated ^C interrupt. */
-  sigaddset(&mask, SIGHUP);    /* Lost of a SSH connection.    */
+  sigaddset(&mask, SIGINT);    // User-generated ^C interrupt.
+  sigaddset(&mask, SIGHUP);    // Loss of a SSH connection.
 
   if (opts->so_tout > 0)
-    sigaddset(&mask, SIGALRM); /* Process timeout.             */
+    sigaddset(&mask, SIGALRM); // Process timeout.
 
-  /* Prevent the above signals from asynchronous handling. */
+  // Prevent the above signals from asynchronous handling.
   sigprocmask(SIG_BLOCK, &mask, NULL);
 
-  /* Create a new signal file descriptor. */
+  // Create a new signal file descriptor.
   *sigfd = signalfd(-1, &mask, 0);
   if (*sigfd == -1) {
     warn("Unable to create signal file descriptor");
     return false;
   }
 
-  /* Add the signal file descriptor to the event queue. */
+  // Add the signal file descriptor to the event queue.
   ev.events = EPOLLIN;
   ev.data.fd = *sigfd;
   if (epoll_ctl(epfd, EPOLL_CTL_ADD, *sigfd, &ev) == -1) {
@@ -335,15 +323,14 @@ create_signal_event(int* sigfd, const int epfd, const sub_options* opts)
   return true;
 }
 
-/** Print the payload content as a CSV-formatted line to the standard output.
- *
- * @param[in] pl    payload
- * @param[in] ep    connection endpoint
- * @param[in] tv    packet arrival time
- * @param[in] hname hostname
- * @param[in] ttl   Time-To-Live value upon arrival
- * @param[in] opts  command-line options
-**/
+/// Print the payload content as a CSV-formatted line to the standard output.
+///
+/// @param[in] pl    payload
+/// @param[in] ep    connection endpoint
+/// @param[in] tv    packet arrival time
+/// @param[in] hname hostname
+/// @param[in] ttl   Time-To-Live value upon arrival
+/// @param[in] opts  command-line options
 static void
 print_payload_csv(const payload* pl,
                   const endpoint* ep,
@@ -389,15 +376,14 @@ print_payload_csv(const payload* pl,
     (uint32_t)tv->tv_nsec);
 }
 
-/** Print the payload content in the raw binary format (big-endian) to the
- * standard output.
- *
- * @param[in] pl    payload
- * @param[in] ep    connection endpoint
- * @param[in] tv    packet arrival time
- * @param[in] hname hostname
- * @param[in] opts  command-line options
-**/
+/// Print the payload content in the raw binary format (big-endian) to the
+/// standard output.
+///
+/// @param[in] pl    payload
+/// @param[in] ep    connection endpoint
+/// @param[in] tv    packet arrival time
+/// @param[in] hname hostname
+/// @param[in] opts  command-line options
 static void
 print_payload_raw(const payload* pl,
                   const endpoint* ep,
@@ -415,14 +401,13 @@ print_payload_raw(const payload* pl,
   fwrite(&ro, sizeof(ro), 1, stdout);
 }
 
-/** Determine whether to print the payload and choose the method based on the
- * user-selected options.
- *
- * @param[in] pl    payload
- * @param[in] ep    endpoint
- * @param[in] hname hostname
- * @param[in] opts  command-line options
-**/
+/// Determine whether to print the payload and choose the method based on the
+/// user-selected options.
+///
+/// @param[in] pl    payload
+/// @param[in] ep    endpoint
+/// @param[in] hname hostname
+/// @param[in] opts  command-line options
 static void
 print_payload(payload* pl,
               const endpoint* ep,
@@ -432,30 +417,29 @@ print_payload(payload* pl,
 {
   struct timespec tv;
 
-  /* Filter out non-matching session IDs. */
+  // Filter out non-matching session IDs.
   if (opts->so_sid != 0 && opts->so_sid != pl->pl_sid)
     return;
 
-  /* Filter out payloads below the offset threshold. */
+  // Filter out payloads below the offset threshold.
   if (opts->so_off > pl->pl_snum)
     return;
 
-  /* Apply the sequence number offset. */
+  // Apply the sequence number offset.
   (*pl).pl_snum -= opts->so_off;
 
   clock_gettime(CLOCK_REALTIME, &tv);
 
-  /* Perform the user-selected type of output. */
+  // Perform the user-selected type of output.
   if (opts->so_raw)
     print_payload_raw(pl, ep, &tv, hname);
   else
     print_payload_csv(pl, ep, &tv, hname, ttl, opts);
 }
 
-/** Convert all integers from the big-endian to host byte order.
- *
- * @param[in] pl payload
-**/
+/// Convert all integers from the network to host byte order.
+///
+/// @param[in] pl payload
 static void
 convert_payload(payload* pl)
 {
@@ -469,13 +453,11 @@ convert_payload(payload* pl)
   pl->pl_nsec  = ntohl(pl->pl_nsec);
 }
 
-/** Traverse the control messages and obtain the received Time-To-Live value.
- *
- * @param[out] ttl Time-To-Live value
- * @param[in]  msg received message
- *
- * @return status code
-**/
+/// Traverse the control messages and obtain the received Time-To-Live value.
+/// @return status code
+///
+/// @param[out] ttl Time-To-Live value
+/// @param[in]  msg received message
 static bool
 retrieve_ttl(int* ttl, struct msghdr* msg)
 {
@@ -492,15 +474,13 @@ retrieve_ttl(int* ttl, struct msghdr* msg)
   return false;
 }
 
-/** Read all incoming datagrams associated with an endpoint.
- *
- * @param[out] nrecv overall number of received datagrams
- * @param[in]  ep    endpoint
- * @param[in]  hname hostname
- * @param[in]  opts  command-line options
- *
- * @return status code
-**/
+/// Read all incoming datagrams associated with an endpoint.
+/// @return status code
+///
+/// @param[out] nrecv overall number of received datagrams
+/// @param[in]  ep    endpoint
+/// @param[in]  hname hostname
+/// @param[in]  opts  command-line options
 static bool
 handle_event(uint64_t* nrecv,
              endpoint* ep,
@@ -515,17 +495,17 @@ handle_event(uint64_t* nrecv,
   struct iovec data;
   char cdata[128];
 
-  /* Prepare the address for the ingress loop. */
+  // Prepare the address for the ingress loop.
   addr.sin_port   = htons((uint16_t)opts->so_port);
   addr.sin_family = AF_INET;
 
-  /* Loop through all available datagrams on the socket. */
+  // Loop through all available datagrams on the socket.
   while (1) {
-    /* Prepare payload data. */
+    // Prepare payload data.
     data.iov_base = &pl;
     data.iov_len  = sizeof(pl);
 
-    /* Prepare the message. */
+    // Prepare the message.
     msg.msg_name       = &addr;
     msg.msg_namelen    = sizeof(addr);
     msg.msg_iov        = &data;
@@ -533,19 +513,19 @@ handle_event(uint64_t* nrecv,
     msg.msg_control    = cdata;
     msg.msg_controllen = sizeof(cdata);
 
-    /* Read an incoming datagram. */
+    // Read an incoming datagram.
     nbytes = recvmsg(ep->ep_sock, &msg, MSG_TRUNC | MSG_DONTWAIT);
     if (nbytes == -1) {
-      /* Exit the reading loop if there are no more datagrams to process. */
+      // Exit the reading loop if there are no more datagrams to process.
       if (errno == EAGAIN)
         break;
 
-      /* Otherwise register the error with the user. */
+      // Otherwise register the error with the user.
       warn("Unable to receive datagram");
       return false;
     }
 
-    /* Verify the size of the received payload. */
+    // Verify the size of the received payload.
     if ((size_t)nbytes != sizeof(pl)) {
       warnx("Wrong payload size, expected: %zu, got: %zd", sizeof(pl), nbytes);
       continue;
@@ -555,14 +535,14 @@ handle_event(uint64_t* nrecv,
 
     convert_payload(&pl);
 
-    /* Verify the magic number of the payload. */
+    // Verify the magic number of the payload.
     if (pl.pl_magic != MBEAT_PAYLOAD_MAGIC) {
       warnx("Payload magic number invalid, expected: %u, got: %u",
             MBEAT_PAYLOAD_MAGIC, pl.pl_magic);
       continue;
     }
 
-    /* Ensure that the format version is supported. */
+    // Ensure that the format version is supported.
     if (pl.pl_fver != MBEAT_PAYLOAD_VERSION) {
       warnx("Unsupported payload version, expected: %u, got: %u",
             MBEAT_PAYLOAD_VERSION, pl.pl_fver);
@@ -571,7 +551,7 @@ handle_event(uint64_t* nrecv,
 
     print_payload(&pl, ep, hname, ttl, opts);
 
-    /* Successfully received a datagram. */
+    // Successfully received a datagram.
     (*nrecv)++;
     if (*nrecv == opts->so_exp)
       break;
@@ -580,15 +560,13 @@ handle_event(uint64_t* nrecv,
   return true;
 }
 
-/** Receive datagrams on all initialized connections.
- *
- * @param[in] epfd  epoll(2) file descriptor
- * @param[in] sigfd signal file descriptor
- * @param[in] hname hostname
- * @param[in] opts  command-line options
- *
- * @return status code
-**/
+/// Receive datagrams on all initialized connections.
+/// @return status code
+///
+/// @param[in] epfd  epoll(2) file descriptor
+/// @param[in] sigfd signal file descriptor
+/// @param[in] hname hostname
+/// @param[in] opts  command-line options
 static bool
 receive_datagrams(const int epfd,
                   const int sigfd,
@@ -602,13 +580,13 @@ receive_datagrams(const int epfd,
 
   nrecv = 0;
 
-  /* Print the CSV header. */
+  // Print the CSV header.
   if (!opts->so_raw)
     printf("SessionID,SequenceNum,SequenceLen,MulticastAddr,MulticastPort,"
            "SrcTTL,DstTTL,PubInterface,PubHostname,SubInterface,SubHostname,"
            "TimeOfDeparture,TimeOfArrival\n");
 
-  /* Receive datagrams on all initialized connections. */
+  // Receive datagrams on all initialized connections.
   while (1) {
     ev_cnt = epoll_wait(epfd, evs, 64, -1);
     if (ev_cnt < 0) {
@@ -616,17 +594,17 @@ receive_datagrams(const int epfd,
       return false;
     }
 
-    /* Handle each event. */
+    // Handle each event.
     for (i = 0; i < ev_cnt; i++) {
-      /* Handle the signal event for SIGINT, SIGHUP and optionally SIGALRM. */
+      // Handle the signal event for SIGINT, SIGHUP and optionally SIGALRM.
       if (evs[i].data.fd == sigfd)
         return true;
 
-      /* Handle socket events. */
+      // Handle socket events.
       if (!handle_event(&nrecv, evs[i].data.ptr, hname, opts))
         return false;
 
-      /* Quit after expected number of received datagrams. */
+      // Quit after expected number of received datagrams.
       if (opts->so_exp != 0 && nrecv == opts->so_exp)
         return true;
     }
@@ -635,26 +613,24 @@ receive_datagrams(const int epfd,
   return true;
 }
 
-/** Install signal alarm with the user-selected millisecond precision.
- *
- * @param[in] opts command-line options
- *
- * @return status code
-**/
+/// Install signal alarm with the user-selected millisecond precision.
+/// @return status code
+///
+/// @param[in] opts command-line options
 static bool
 install_alarm(const sub_options* opts)
 {
   struct itimerspec spec;
   timer_t tm;
 
-  /* Zero denotes situation where no timeout is specified. */
+  // Zero denotes situation where no timeout is specified.
   if (opts->so_tout == 0)
     return true;
 
   convert_millis(&spec.it_value, opts->so_tout);
   convert_millis(&spec.it_interval, 0);
 
-  /* Create and arm the timer based on the selected timeout. */
+  // Create and arm the timer based on the selected timeout.
   if (timer_create(CLOCK_REALTIME, NULL, &tm) == -1) {
     warn("Unable to create timer");
     return false;
@@ -668,12 +644,10 @@ install_alarm(const sub_options* opts)
   return true;
 }
 
-/** Disable the standard output stream buffering based on user settings.
- *
- * @param[in] opts command-line options
- *
- * @return status code
-**/
+/// Disable the standard output stream buffering based on user settings.
+/// @return status code
+///
+/// @param[in] opts command-line options
 static bool
 disable_buffering(const sub_options* opts)
 {
@@ -688,74 +662,74 @@ disable_buffering(const sub_options* opts)
   return true;
 }
 
-/** Multicast heartbeat subscriber. */
+/// Multicast heartbeat subscriber.
 int
 main(int argc, char* argv[])
 {
-  /* Command-line options. */
+  // Command-line options.
   sub_options opts;
 
-  /* Endpoint array. */
+  // Endpoint array.
   endpoint* eps;
   int ep_cnt;
   int ep_idx;
 
-  /* Signal and event management. */
+  // Signal and event management.
   int epfd;
   int sigfd;
 
-  /* Cached hostname. */
+  // Cached hostname.
   char hname[HNAME_LEN+1];
 
   eps = NULL;
   ep_cnt = 0;
   ep_idx = 0;
 
-  /* Obtain the hostname. */
+  // Obtain the hostname.
   if (!cache_hostname(hname, sizeof(hname)))
     return EXIT_FAILURE;
 
-  /* Process the command-line arguments. */
+  // Process the command-line arguments.
   if (!parse_args(&ep_cnt, &ep_idx, &opts, argc, argv))
     return EXIT_FAILURE;
 
-  /* Allocate memory for endpoints. */
+  // Allocate memory for endpoints.
   if (!allocate_endpoints(&eps, ep_cnt))
     return EXIT_FAILURE;
 
-  /* Disable buffering on the standard output. */
+  // Disable buffering on the standard output.
   if (!disable_buffering(&opts))
     return EXIT_FAILURE;
 
-  /* Parse and validate endpoints. */
+  // Parse and validate endpoints.
   if (!parse_endpoints(eps, ep_idx, argv, ep_cnt))
     return EXIT_FAILURE;
 
-  /* Create the event queue. */
+  // Create the event queue.
   if (!create_event_queue(&epfd))
     return EXIT_FAILURE;
 
-  /* Initialise the sockets based on selected interfaces. */
+  // Initialise the sockets based on selected interfaces.
   if (!create_sockets(eps, ep_cnt, &opts))
     return EXIT_FAILURE;
 
-  /* Create the socket events and add them to the event queue. */
+  // Create the socket events and add them to the event queue.
   if (!create_socket_events(epfd, eps, ep_cnt))
     return EXIT_FAILURE;
 
-  /* Create a signal event and add it to the event queue. */
+  // Create a signal event and add it to the event queue.
   if (!create_signal_event(&sigfd, epfd, &opts))
     return EXIT_FAILURE;
 
-  /* Install the signal alarm. */
+  // Install the signal alarm.
   if (!install_alarm(&opts))
     return EXIT_FAILURE;
 
-  /* Start receiving datagrams. */
+  // Start receiving datagrams.
   if (!receive_datagrams(epfd, sigfd, hname, &opts))
     return EXIT_FAILURE;
 
-  /* Flush the standard output stream. */
+  // Flush the standard output stream.
   fflush(stdout);
   free(eps);
 

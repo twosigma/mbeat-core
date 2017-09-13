@@ -1,10 +1,8 @@
-/*
- *  Copyright (c) 2017 Two Sigma Open Source, LLC.
- *  All Rights Reserved
- *
- *  Distributed under the terms of the 2-clause BSD License. The full
- *  license is in the file LICENSE, distributed as part of this software.
-**/
+// Copyright (c) 2017 Two Sigma Open Source, LLC.
+// All Rights Reserved
+//
+// Distributed under the terms of the 2-clause BSD License. The full
+// license is in the file LICENSE, distributed as part of this software.
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -30,15 +28,15 @@
 #include "common.h"
 
 
-/* Default values for optional arguments. */
-#define DEF_BUFFER_SIZE     0 /* Zero denotes the system default.      */
-#define DEF_COUNT           5 /* Number of published datagrams.        */
-#define DEF_INTERVAL     1000 /* Publishing interval in milliseconds.  */
-#define DEF_TIME_TO_LIVE    1 /* Time-To-Live for published datagrams. */
-#define DEF_ERROR           0 /* Process exit on publishing error.     */
-#define DEF_LOOP            0 /* Looping policy on localhost.          */
+// Default values for optional arguments.
+#define DEF_BUFFER_SIZE     0 // Zero denotes the system default.
+#define DEF_COUNT           5 // Number of published datagrams.
+#define DEF_INTERVAL     1000 // Publishing interval in milliseconds.
+#define DEF_TIME_TO_LIVE    1 // Time-To-Live for published datagrams.
+#define DEF_ERROR           0 // Process exit on publishing error.
+#define DEF_LOOP            0 // Looping policy on localhost.
 
-/** Print the utility usage information to the standard output. */
+/// Print the utility usage information to the standard output.
 static void
 print_usage(void)
 {
@@ -65,26 +63,24 @@ print_usage(void)
     DEF_TIME_TO_LIVE);
 }
 
-/** Generate a random session ID.
- *
- * @return random 64-bit unsigned integer (non-zero)
-**/
+/// Generate a random session ID.
+/// @return random 64-bit unsigned integer (non-zero)
 static uint64_t
 generate_sid(void)
 {
   uint64_t sid;
 
-  /* Seed the psuedo-random number generator. The generated session ID is not
-   * intended to be cryptographically safe - it is just intended to prevent
-   * publishers from the same host to share the same session ID. The only
-   * situation that this could still happen is if system PIDs loop over and
-   * cause the following equation: t1 + pid1 == t2 + pid2, which was ruled to
-   * be unlikely. */
+  // Seed the psuedo-random number generator. The generated session ID is not
+  // intended to be cryptographically safe - it is just intended to prevent
+  // publishers from the same host to share the same session ID. The only
+  // situation that this could still happen is if system PIDs loop over and
+  // cause the following equation: t1 + pid1 == t2 + pid2, which was ruled to
+  // be unlikely.
   srand48(time(NULL) + getpid());
 
-  /* Generate a random session key and ensure it is not a zero. The zero value
-   * is internally used to represent the state where no filtering of session
-   * IDs is performed by the subscriber process. */
+  // Generate a random session key and ensure it is not a zero. The zero value
+  // is internally used to represent the state where no filtering of session
+  // IDs is performed by the subscriber process.
   do {
     sid = (uint64_t)lrand48() | ((uint64_t)lrand48() << 32);
   } while (sid == 0);
@@ -92,22 +88,20 @@ generate_sid(void)
   return sid;
 }
 
-/** Parse the command-line options.
- *
- * @param[out] ep_cnt endpoint count
- * @param[out] ep_idx endpoint start index 
- * @param[out] opts   command-line options
- * @param[in]  argc   argument count
- * @param[in]  argv   argument vector
- *
- * @return status code
-**/
+/// Parse the command-line options.
+/// @return status code
+///
+/// @param[out] ep_cnt endpoint count
+/// @param[out] ep_idx endpoint start index 
+/// @param[out] opts   command-line options
+/// @param[in]  argc   argument count
+/// @param[in]  argv   argument vector
 static bool 
 parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
 {
   int opt;
 
-  /* Set optional arguments to sensible defaults. */
+  // Set optional arguments to sensible defaults.
   opts->po_buf  = DEF_BUFFER_SIZE;
   opts->po_cnt  = DEF_COUNT;
   opts->po_int  = DEF_INTERVAL;
@@ -120,65 +114,65 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
   while ((opt = getopt(argc, argv, "b:c:ehi:lp:s:t:")) != -1) {
     switch (opt) {
 
-      /* Send buffer size. The lowest accepted value is 1024, enforcing the
-       * same limit as the Linux kernel. */
+      // Send buffer size. The lowest accepted value is 1024, enforcing the
+      // same limit as the Linux kernel.
       case 'b':
         if (parse_uint64(&opts->po_buf, optarg, 1024, UINT64_MAX) == 0)
           return false;
         break;
 
-      /* Number of published datagrams. */
+      // Number of published datagrams.
       case 'c':
         if (parse_uint64(&opts->po_cnt, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
-      /* Process exit on publish error. */
+      // Process exit on publish error.
       case 'e':
         opts->po_err = 1;
         break;
 
-      /* Usage information. */
+      // Usage information.
       case 'h':
         print_usage();
         return false;
 
-      /* Wait interval between datagrams in milliseconds. */
+      // Wait interval between datagrams in milliseconds.
       case 'i':
         if (parse_uint64(&opts->po_int, optarg, 0, UINT64_MAX) == 0)
           return false;
         break;
 
-      /* Enable the datagram looping on localhost. */
+      // Enable the datagram looping on localhost.
       case 'l':
         opts->po_lop = 1;
         break;
 
-      /* UDP port for all endpoints. */
+      // UDP port for all endpoints.
       case 'p':
         if (parse_uint64(&opts->po_port, optarg, 0, 65535) == 0)
           return false;
         break;
 
-      /* Session ID of the current run. */
+      // Session ID of the current run.
       case 's':
         if (parse_uint64(&opts->po_sid, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
-      /* Time-To-Live for published datagrams. */
+      // Time-To-Live for published datagrams.
       case 't':
         if (parse_uint64(&opts->po_ttl, optarg, 0, 255) == 0)
           return false;
         break;
 
-      /* Unknown option. */
+      // Unknown option.
       case '?':
         warnx("Invalid option '%c'", optopt);
         print_usage();
         return false;
 
-      /* Unknown situation. */
+      // Unknown situation.
       default:
         print_usage();
         return false;
@@ -191,14 +185,12 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
   return true;
 }
 
-/** Create endpoint sockets and apply the interface settings.
- *
- * @param[in] eps    endpoint array
- * @param[in] ep_cnt number of endpoint elements
- * @param[in] opts   command-line options
- *
- * @return status code
-**/
+/// Create endpoint sockets and apply the interface settings.
+/// @return status code
+///
+/// @param[in] eps    endpoint array
+/// @param[in] ep_cnt number of endpoint elements
+/// @param[in] opts   command-line options
 static bool 
 create_sockets(endpoint* eps, const int ep_cnt, const pub_options* opts)
 {
@@ -215,14 +207,14 @@ create_sockets(endpoint* eps, const int ep_cnt, const pub_options* opts)
       return false;
     }
 
-    /* Enable multiple sockets being bound to the same address/port. */
+    // Enable multiple sockets being bound to the same address/port.
     if (setsockopt(eps[i].ep_sock, SOL_SOCKET, SO_REUSEADDR,
                    &enable, sizeof(enable)) == -1) {
       warn("Unable to make the socket address reusable");
       return false;
     }
 
-    /* Set the socket send buffer size to the requested value. */
+    // Set the socket send buffer size to the requested value.
     if (opts->po_buf != 0) {
       buf_size = (int)opts->po_buf;
       if (setsockopt(eps[i].ep_sock, SOL_SOCKET, SO_SNDBUF,
@@ -232,21 +224,21 @@ create_sockets(endpoint* eps, const int ep_cnt, const pub_options* opts)
       }
     }
 
-    /* Limit the socket to the selected interface. */
+    // Limit the socket to the selected interface.
     if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_MULTICAST_IF,
                    &(eps[i].ep_iaddr), sizeof(eps[i].ep_iaddr)) == -1) {
       warn("Unable to select socket interface '%s'", eps[i].ep_iname);
       return false;
     }
 
-    /* Set the datagram looping policy. */
+    // Set the datagram looping policy.
     if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_MULTICAST_LOOP,
                    &opts->po_lop, sizeof(opts->po_lop)) == -1) {
       warn("Unable to set the localhost looping policy");
       return false;
     }
 
-    /* Adjust the Time-To-Live setting to reach farther networks. */
+    // Adjust the Time-To-Live setting to reach farther networks.
     ttl_set = (uint8_t)opts->po_ttl;
     if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_MULTICAST_TTL,
                    &ttl_set, sizeof(ttl_set)) == -1) {
@@ -258,14 +250,13 @@ create_sockets(endpoint* eps, const int ep_cnt, const pub_options* opts)
   return true;
 }
 
-/** Create the datagram payload.
- *
- * @param[out] pl    payload
- * @param[in]  ep    endpoint
- * @param[in]  sid   session ID
- * @param[in]  hname hostname
- * @param[in]  opts  command-line options
-**/
+/// Create the datagram payload.
+///
+/// @param[out] pl    payload
+/// @param[in]  ep    endpoint
+/// @param[in]  sid   session ID
+/// @param[in]  hname hostname
+/// @param[in]  opts  command-line options
 static void
 fill_payload(payload* pl,
              endpoint* ep,
@@ -293,15 +284,13 @@ fill_payload(payload* pl,
   pl->pl_nsec  = htonl((uint32_t)tv.tv_nsec);
 }
 
-/** Publish datagrams to all requested multicast groups.
- *
- * @param[in] eps    endpoint array
- * @param[in] ep_cnt number of endpoint entries
- * @param[in] hname  local hostname
- * @param[in] opts   command-line options
- *
- * @return status code
-**/
+/// Publish datagrams to all requested multicast groups.
+/// @return status code
+///
+/// @param[in] eps    endpoint array
+/// @param[in] ep_cnt number of endpoint entries
+/// @param[in] hname  local hostname
+/// @param[in] opts   command-line options
 static bool
 publish_datagrams(endpoint* eps,
                   const int ep_cnt,
@@ -319,23 +308,23 @@ publish_datagrams(endpoint* eps,
 
   convert_millis(&ts, opts->po_int);
 
-  /* Prepare the address structure. */
+  // Prepare the address structure.
   addr.sin_port   = htons((uint16_t)opts->po_port);
   addr.sin_family = AF_INET;
 
-  /* Publish the requested number of datagrams. */
+  // Publish the requested number of datagrams.
   for (c = 0; c < opts->po_cnt; c++) {
     for (i = 0; i < ep_cnt; i++) {
       fill_payload(&pl, &eps[i], c, hname, opts);
 
-      /* Set the multicast address. */
+      // Set the multicast address.
       addr.sin_addr.s_addr = eps[i].ep_maddr.s_addr;
 
-      /* Prepare payload data. */
+      // Prepare payload data.
       data.iov_base = &pl;
       data.iov_len  = sizeof(pl);
 
-      /* Prepare the message. */
+      // Prepare the message.
       msg.msg_name       = &addr;
       msg.msg_namelen    = sizeof(addr);
       msg.msg_iov        = &data;
@@ -343,7 +332,7 @@ publish_datagrams(endpoint* eps,
       msg.msg_control    = NULL;
       msg.msg_controllen = 0;
 
-      /* Send the payload. */
+      // Send the payload.
       ret = sendmsg(eps[i].ep_sock, &msg, MSG_DONTWAIT);
       if (ret == 0) {
         warn("Unable to send datagram");
@@ -353,7 +342,7 @@ publish_datagrams(endpoint* eps,
       }
     }
 
-    /* Do not sleep after the last round of datagrams. */
+    // Do not sleep after the last round of datagrams.
     if (opts->po_int > 0 && c != (opts->po_cnt - 1))
       nanosleep(&ts, NULL);
   }
@@ -361,46 +350,46 @@ publish_datagrams(endpoint* eps,
   return true;
 }
 
-/** Multicast heartbeat publisher. */
+/// Multicast heartbeat publisher.
 int
 main(int argc, char* argv[])
 {
-  /* Command-line options. */
+  // Command-line options.
   pub_options opts;
 
-  /* Endpoint array. */
+  // Endpoint array.
   endpoint* eps;
   int ep_cnt;
   int ep_idx;
 
-  /* Cached hostname. */
+  // Cached hostname.
   char hname[HNAME_LEN + 1];
 
   eps = NULL;
   ep_cnt = 0;
   ep_idx = 0;
 
-  /* Obtain the hostname. */
+  // Obtain the hostname.
   if (!cache_hostname(hname, sizeof(hname)))
     return EXIT_FAILURE;
 
-  /* Process the command-line arguments. */
+  // Process the command-line arguments.
   if (!parse_args(&ep_cnt, &ep_idx, &opts, argc, argv))
     return EXIT_FAILURE;
 
-  /* Allocate memory for endpoints. */
+  // Allocate memory for endpoints.
   if (!allocate_endpoints(&eps, ep_cnt))
     return EXIT_FAILURE;
 
-  /* Parse and validate endpoints. */
+  // Parse and validate endpoints.
   if (!parse_endpoints(eps, ep_idx, argv, ep_cnt))
     return EXIT_FAILURE;
 
-  /* Initialise the sockets based on selected interfaces. */
+  // Initialise the sockets based on selected interfaces.
   if (!create_sockets(eps, ep_cnt, &opts))
     return EXIT_FAILURE;
 
-  /* Publish datagrams to selected multicast groups. */
+  // Publish datagrams to selected multicast groups.
   if (!publish_datagrams(eps, ep_cnt, hname, &opts))
     return EXIT_FAILURE;
 
