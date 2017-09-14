@@ -64,7 +64,6 @@ typedef struct _sub_options {
   uint64_t so_tout; ///< Execution timeout in milliseconds.
   uint64_t so_buf;  ///< Socket receive buffer size in bytes.
   uint64_t so_sid;  ///< Session ID filter of received datagrams.
-  uint64_t so_exp;  ///< Quit after expected number of packets arrive.
   uint64_t so_off;  ///< Sequence number offset.
   uint64_t so_port; ///< UDP port for all endpoints.
   uint8_t  so_raw;  ///< Output received datagrams in raw binary format.

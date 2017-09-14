@@ -38,7 +38,6 @@
 #define DEF_TIMEOUT      0 // Zero denotes no timeout is applied.
 #define DEF_BUFFER_SIZE  0 // Zero denotes the system default.
 #define DEF_SESSION_ID   0 // Zero denotes no session ID filtering.
-#define DEF_EXPECT_COUNT 0 // Zero denotes no particular count is expected.
 #define DEF_OFFSET       0 // Sequence numbers have no offset by default.
 #define DEF_RAW_OUTPUT   0 // Raw binary output is disabled by default.
 #define DEF_UNBUFFERED   0 // Unbuffered output is disabled by default.
@@ -51,11 +50,10 @@ print_usage(void)
     "multicast heartbeat subscriber - receive datagrams from selected\n"
     "network endpoints - v%d.%d.%d\n\n"
 
-    "mbeat_sub [-b BSZ] [-e CNT] [-h] [-o OFF] [-p PORT] [-r]\n"
+    "mbeat_sub [-b BSZ] [-h] [-o OFF] [-p PORT] [-r]\n"
     "          [-s SID] [-t MS] [-u] iface=maddr [iface=maddr ...]\n\n"
 
     "  -b BSZ  Receive buffer size in bytes.\n"
-    "  -e CNT  Quit after CNT datagrams were received.\n"
     "  -h      Print this help message.\n"
     "  -o OFF  Ignore payloads with lesser sequence number. (def=%d)\n"
     "  -p PORT UDP port for all endpoints. (def=%d)\n"
@@ -87,7 +85,6 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
   opts->so_tout = DEF_TIMEOUT;
   opts->so_buf  = DEF_BUFFER_SIZE;
   opts->so_sid  = DEF_SESSION_ID;
-  opts->so_exp  = DEF_EXPECT_COUNT;
   opts->so_off  = DEF_OFFSET;
   opts->so_port = MBEAT_PORT;
   opts->so_raw  = DEF_RAW_OUTPUT;
@@ -100,12 +97,6 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
       // same limit as the Linux kernel.
       case 'b':
         if (parse_uint64(&opts->so_buf, optarg, 128, UINT64_MAX) == 0)
-          return false;
-        break;
-
-      // Expected number of datagrams to receive.
-      case 'e':
-        if (parse_uint64(&opts->so_exp, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
@@ -477,13 +468,11 @@ retrieve_ttl(int* ttl, struct msghdr* msg)
 /// Read all incoming datagrams associated with an endpoint.
 /// @return status code
 ///
-/// @param[out] nrecv overall number of received datagrams
 /// @param[in]  ep    endpoint
 /// @param[in]  hname hostname
 /// @param[in]  opts  command-line options
 static bool
-handle_event(uint64_t* nrecv,
-             endpoint* ep,
+handle_event(endpoint* ep,
              const char* hname,
              const sub_options* opts)
 {
@@ -550,11 +539,6 @@ handle_event(uint64_t* nrecv,
     }
 
     print_payload(&pl, ep, hname, ttl, opts);
-
-    // Successfully received a datagram.
-    (*nrecv)++;
-    if (*nrecv == opts->so_exp)
-      break;
   }
 
   return true;
@@ -574,11 +558,8 @@ receive_datagrams(const int epfd,
                   const sub_options* opts)
 {
   struct epoll_event evs[64];
-  uint64_t nrecv;
   int ev_cnt;
   int i;
-
-  nrecv = 0;
 
   // Print the CSV header.
   if (!opts->so_raw)
@@ -601,12 +582,8 @@ receive_datagrams(const int epfd,
         return true;
 
       // Handle socket events.
-      if (!handle_event(&nrecv, evs[i].data.ptr, hname, opts))
+      if (!handle_event(evs[i].data.ptr, hname, opts))
         return false;
-
-      // Quit after expected number of received datagrams.
-      if (opts->so_exp != 0 && nrecv == opts->so_exp)
-        return true;
     }
   }
 
