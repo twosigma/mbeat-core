@@ -49,6 +49,7 @@ print_usage(void)
     "Options:\n"
     "  -b BSZ  Send buffer size in bytes.\n"
     "  -c CNT  Publish exactly CNT datagrams. (def=%d)\n"
+    "  -e      Stop the process on publishing error.\n"
     "  -h      Print this help message.\n"
     "  -i MS   Interval between published datagrams in milliseconds. (def=%d)\n"
     "  -l      Turn on datagram looping.\n"
