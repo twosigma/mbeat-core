@@ -12,14 +12,14 @@ FEATURE_TEST = -D_BSD_SOURCE             \
 CFLAGS = -std=c99 -Wall -Wextra $(FEATURE_TEST)
 LDFLAGS = -lrt
 
-all: bin/mbeat_pub bin/mbeat_sub
+all: bin/mpub bin/msub
 
 # executables
-bin/mbeat_pub: obj/pub.o obj/common.o
-	$(CC) obj/pub.o obj/common.o -o bin/mbeat_pub $(LDFLAGS)
+bin/mpub: obj/pub.o obj/common.o
+	$(CC) obj/pub.o obj/common.o -o bin/mpub $(LDFLAGS)
 
-bin/mbeat_sub: obj/sub.o obj/common.o
-	$(CC) obj/sub.o obj/common.o -o bin/mbeat_sub $(LDFLAGS)
+bin/msub: obj/sub.o obj/common.o
+	$(CC) obj/sub.o obj/common.o -o bin/msub $(LDFLAGS)
 
 # object files
 obj/common.o: src/common.c
@@ -32,8 +32,8 @@ obj/sub.o: src/sub.c
 	$(CC) $(CFLAGS) -c src/sub.c -o obj/sub.o
 
 clean:
-	rm -f bin/mbeat_pub
-	rm -f bin/mbeat_sub
+	rm -f bin/mpub
+	rm -f bin/msub
 	rm -f obj/common.o
 	rm -f obj/pub.o
 	rm -f obj/sub.o
