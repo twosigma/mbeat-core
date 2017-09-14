@@ -47,12 +47,12 @@ static void
 print_usage(void)
 {
   fprintf(stderr,
-    "multicast heartbeat subscriber - receive datagrams from selected\n"
-    "network endpoints - v%d.%d.%d\n\n"
+    "Multicast heartbeat subscriber - v%d.%d.%d\n"
+    "Receive datagrams from selected network endpoints.\n\n"
 
-    "mbeat_sub [-b BSZ] [-h] [-o OFF] [-p PORT] [-r]\n"
-    "          [-s SID] [-t MS] [-u] iface=maddr [iface=maddr ...]\n\n"
+    "Usage: mbeat_sub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
 
+    "Options:\n"
     "  -b BSZ  Receive buffer size in bytes.\n"
     "  -h      Print this help message.\n"
     "  -o OFF  Ignore payloads with lesser sequence number. (def=%d)\n"

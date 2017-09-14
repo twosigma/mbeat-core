@@ -41,11 +41,12 @@ static void
 print_usage(void)
 {
   fprintf(stderr,
-    "multicast heartbeat publisher - send datagrams to selected\n"
-    "network endpoints - v%d.%d.%d\n\n"
+    "Multicast heartbeat publisher - v%d.%d.%d\n"
+    "Send datagrams to selected network endpoints.\n\n"
 
-    "mbeat_pub [-b BSZ] [-c CNT] [-h] [-i MS] [-l] [-p PORT]\n"
-    "          [-s SID] [-t TTL] iface=maddr [iface=maddr ...]\n\n"
+    "Usage: mbeat_pub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
+
+    "Options:\n"
     "  -b BSZ  Send buffer size in bytes.\n"
     "  -c CNT  Publish exactly CNT datagrams. (def=%d)\n"
     "  -h      Print this help message.\n"
