@@ -39,6 +39,7 @@
 #define DEF_BUFFER_SIZE  0 // Zero denotes the system default.
 #define DEF_SESSION_ID   0 // Zero denotes no session ID filtering.
 #define DEF_OFFSET       0 // Sequence numbers have no offset by default.
+#define DEF_ERROR        0 // Do not stop the process on receiving error.
 #define DEF_RAW_OUTPUT   0 // Raw binary output is disabled by default.
 #define DEF_UNBUFFERED   0 // Unbuffered output is disabled by default.
 
@@ -54,6 +55,7 @@ print_usage(void)
 
     "Options:\n"
     "  -b BSZ  Receive buffer size in bytes.\n"
+    "  -e      Stop the process on receiving error.\n"
     "  -h      Print this help message.\n"
     "  -o OFF  Ignore payloads with lesser sequence number. (def=%d)\n"
     "  -p PORT UDP port for all endpoints. (def=%d)\n"
@@ -87,6 +89,7 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
   opts->so_sid  = DEF_SESSION_ID;
   opts->so_off  = DEF_OFFSET;
   opts->so_port = MBEAT_PORT;
+  opts->so_err  = DEF_ERROR;
   opts->so_raw  = DEF_RAW_OUTPUT;
   opts->so_unb  = DEF_UNBUFFERED;
 
@@ -98,6 +101,11 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
       case 'b':
         if (parse_uint64(&opts->so_buf, optarg, 128, UINT64_MAX) == 0)
           return false;
+        break;
+
+      // Process exit on receiving error.
+      case 'e':
+        opts->so_err = 1;
         break;
 
       // Usage information.
@@ -511,7 +519,9 @@ handle_event(endpoint* ep,
 
       // Otherwise register the error with the user.
       warn("Unable to receive datagram");
-      return false;
+
+      if (opts->so_err == 1)
+        return false;
     }
 
     // Verify the size of the received payload.

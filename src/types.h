@@ -66,6 +66,7 @@ typedef struct _sub_options {
   uint64_t so_sid;  ///< Session ID filter of received datagrams.
   uint64_t so_off;  ///< Sequence number offset.
   uint64_t so_port; ///< UDP port for all endpoints.
+  uint8_t  so_err;  ///< Process exit on receiving error.
   uint8_t  so_raw;  ///< Output received datagrams in raw binary format.
   uint8_t  so_unb;  ///< Turn off buffering on the output stream.
 } sub_options;
