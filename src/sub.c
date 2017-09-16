@@ -32,6 +32,7 @@
 
 #include "types.h"
 #include "common.h"
+#include "parse.h"
 
 
 // Default values for optional arguments.
@@ -138,7 +139,7 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
 
       // Timeout for the process.
       case 't':
-        if (parse_uint64(&opts->so_tout, optarg, 1, UINT64_MAX) == 0)
+        if (parse_duration(&opts->so_tout, optarg) == 0)
           return false;
         break;
 
@@ -614,8 +615,8 @@ install_alarm(const sub_options* opts)
   if (opts->so_tout == 0)
     return true;
 
-  convert_millis(&spec.it_value, opts->so_tout);
-  convert_millis(&spec.it_interval, 0);
+  convert_nanos(&spec.it_value, opts->so_tout);
+  convert_nanos(&spec.it_interval, 0);
 
   // Create and arm the timer based on the selected timeout.
   if (timer_create(CLOCK_REALTIME, NULL, &tm) == -1) {

@@ -26,6 +26,7 @@
 
 #include "types.h"
 #include "common.h"
+#include "parse.h"
 
 
 // Default values for optional arguments.
@@ -141,7 +142,7 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
 
       // Wait interval between datagrams in milliseconds.
       case 'i':
-        if (parse_uint64(&opts->po_int, optarg, 0, UINT64_MAX) == 0)
+        if (parse_duration(&opts->po_int, optarg) == 0)
           return false;
         break;
 
@@ -308,7 +309,7 @@ publish_datagrams(endpoint* eps,
   struct msghdr msg;
   struct iovec data;
 
-  convert_millis(&ts, opts->po_int);
+  convert_nanos(&ts, opts->po_int);
 
   // Prepare the address structure.
   addr.sin_port   = htons((uint16_t)opts->po_port);

@@ -29,17 +29,9 @@
 // Maximal number of allowed endpoints.
 #define ENDPOINT_MAX 2048
 
-bool parse_uint64(uint64_t* out,
-                  const char* str,
-                  const uint64_t min,
-                  const uint64_t max);
-bool parse_endpoints(endpoint* eps,
-                     const int ep_idx,
-                     char* argv[],
-                     const int ep_cnt);
 bool allocate_endpoints(endpoint** eps, const int ep_cnt);
 bool cache_hostname(char* hname, const size_t hname_len);
-void convert_millis(struct timespec* tv, const uint64_t ms);
+void convert_nanos(struct timespec* tv, const uint64_t ms);
 uint64_t htonll(const uint64_t x);
 uint64_t ntohll(const uint64_t x);
 

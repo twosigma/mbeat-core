@@ -15,15 +15,18 @@ LDFLAGS = -lrt
 all: bin/mpub bin/msub
 
 # executables
-bin/mpub: obj/pub.o obj/common.o
-	$(CC) obj/pub.o obj/common.o -o bin/mpub $(LDFLAGS)
+bin/mpub: obj/pub.o obj/common.o obj/parse.o
+	$(CC) obj/pub.o obj/common.o obj/parse.o -o bin/mpub $(LDFLAGS)
 
-bin/msub: obj/sub.o obj/common.o
-	$(CC) obj/sub.o obj/common.o -o bin/msub $(LDFLAGS)
+bin/msub: obj/sub.o obj/common.o obj/parse.o
+	$(CC) obj/sub.o obj/common.o obj/parse.o -o bin/msub $(LDFLAGS)
 
 # object files
 obj/common.o: src/common.c
 	$(CC) $(CFLAGS) -c src/common.c -o obj/common.o
+
+obj/parse.o: src/parse.c
+	$(CC) $(CFLAGS) -c src/parse.c -o obj/parse.o
 
 obj/pub.o: src/pub.c
 	$(CC) $(CFLAGS) -c src/pub.c -o obj/pub.o
@@ -35,5 +38,6 @@ clean:
 	rm -f bin/mpub
 	rm -f bin/msub
 	rm -f obj/common.o
+	rm -f obj/parse.o
 	rm -f obj/pub.o
 	rm -f obj/sub.o

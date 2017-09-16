@@ -18,192 +18,10 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
-#include <limits.h>
-#include <ifaddrs.h>
-#include <inttypes.h>
 #include <err.h>
 
 #include "common.h"
 
-
-/// Convert a string into an unsigned 64-bit integer.
-/// @return status code
-///
-/// @param[out] out resulting integer
-/// @param[in]  str string
-/// @param[in]  min minimal allowed value (inclusive)
-/// @param[in]  max maximal allowed value (inclusive)
-bool
-parse_uint64(uint64_t* out,
-             const char* str,
-             const uint64_t min,
-             const uint64_t max)
-{
-  uintmax_t x;
-
-  // Convert the input string into a number.
-  errno = 0;
-  x = strtoumax(str, NULL, 10);
-  if (x == 0 && errno != 0) {
-    warn("Unable to parse a number from string '%s'", str);
-    return false;
-  }
-
-  // Verify that the number belongs to the specified range.
-  if (x < (uintmax_t)min || x > (uintmax_t)max) {
-    warnx("Number %ju out of range (%" PRIu64 "..%" PRIu64 ")", x, min, max);
-    return false;
-  }
-
-  *out = (uint64_t)x;
-  return true;
-}
-
-/// Find the lesser of two unsigned integers.
-/// @return lesser of the two numbers
-/// 
-/// @param[in] a first number
-/// @param[in] b second number
-static size_t
-lesser(const size_t a, const size_t b)
-{
-  return a < b ? a : b;
-}
-
-/// Parse and validate the interface.
-/// @return status code
-///
-/// @param[out] ep  connection endpoint
-/// @param[in]  inp input string
-/// @param[in]  ifs list of interfaces
-static bool 
-parse_iface(endpoint* ep, const char* inp, const struct ifaddrs* ifaces)
-{
-  const struct ifaddrs* iface;
-  struct sockaddr_in* if_addr_in;
-
-  // Find a suitable interface.
-  for (iface = ifaces; iface != NULL; iface = iface->ifa_next) {
-    if (iface->ifa_addr == NULL)
-      continue;
-
-    // Skip non-IPv4 interfaces.
-    if (iface->ifa_addr->sa_family != AF_INET)
-      continue;
-
-    if (strcmp(inp, iface->ifa_name) == 0)
-      break;
-  }
-
-  // If no suitable interface was found.
-  if (iface == NULL) {
-    warnx("Unable to find interface '%s' with an IPv4 address", inp);
-    return false;
-  }
-
-  // Make sure that the interface is up.
-  if (!(iface->ifa_flags & IFF_UP)) {
-    warnx("Interface '%s' is not up", inp);
-    return false;
-  }
-
-  // Make sure that the interface supports multicast traffic.
-  if (!(iface->ifa_flags & IFF_MULTICAST)) {
-    warnx("Interface '%s' is not available for multicast traffic", inp);
-    return false;
-  }
-
-  // Assign the found interface address to the endpoint array.
-  if_addr_in = (struct sockaddr_in*)iface->ifa_addr;
-  ep->ep_iaddr = if_addr_in->sin_addr;
-
-  // Copy the interface name to the endpoint.
-  memcpy(ep->ep_iname, inp, lesser(INAME_LEN, strlen(inp)));
-  
-  return true;
-}
-
-/// Parse and validate the multicast address.
-/// @return status code
-///
-/// @param[out] ep  connection endpoint
-/// @param[in]  inp input string
-static bool 
-parse_maddr(endpoint* ep, const char* inp)
-{
-  // Convert and validate the multicast address.
-  if (inet_aton(inp, &ep->ep_maddr) == 0) {
-    warnx("Unable to parse the multicast address '%s'", inp);
-    return false;
-  }
-
-  // Ensure that the address belongs to the multicast range.
-  if (!IN_MULTICAST(ntohl(ep->ep_maddr.s_addr))) {
-    warnx("Address '%s' does not belong to the multicast range", inp);
-    return false;
-  }
-
-  return true;
-}
-
-/// Parse all endpoints from the command-line argument vector.
-/// @return status code
-///
-/// @param[out] eps    endpoint array
-/// @param[in]  ep_idx index into argv where the endpoints start
-/// @param[in]  argv   argument vector
-/// @param[in]  ep_cnt number of endpoint entries
-bool
-parse_endpoints(endpoint* eps, const int ep_idx, char* argv[], const int ep_cnt)
-{
-  int i;
-  int parts;
-  bool result;
-  char iname[256];
-  char maddr[256];
-  struct ifaddrs* ifaces;
-
-  result = true;
-
-  // Populate the list of all network interfaces.
-  errno = 0;
-  if (getifaddrs(&ifaces) == -1) {
-    warn("Unable to populate the list of network interfaces");
-    return false;
-  }
-
-  for (i = 0; i < ep_cnt; i++) {
-    // Reset all buffers.
-    memset(iname, '\0', 256);
-    memset(maddr, '\0', 256);
-
-    // Parse the endpoint format.
-    parts = sscanf(argv[ep_idx + i], "%255[^=]=%255[^:]", iname, maddr);
-    if (parts != 2) {
-      warnx("Unable to parse the endpoint '%s'", argv[ep_idx + i]);
-      result = false;
-      break;
-    }
-
-    // Parse all endpoint parts.
-    memset(&eps[i], 0, sizeof(eps[i]));
-
-    if (!parse_iface(&eps[i], iname, ifaces)) {
-      result = false;
-      break;
-    }
-
-    if (!parse_maddr(&eps[i], maddr)) {
-      result = false;
-      break;
-    }
-  }
-
-  // Release resources held by the interface list.
-  freeifaddrs(ifaces);
-
-  return result;
-}
 
 /// Allocate memory for endpoint storage.
 /// @return status code
@@ -259,15 +77,15 @@ cache_hostname(char* hname, const size_t hname_len)
   return true;
 }
 
-/// Convert time in milliseconds into seconds and nanoseconds.
+/// Convert time in only nanoseconds into seconds and nanoseconds.
 ///
 /// @param[out] tv seconds and nanoseconds
-/// @param[in]  ms milliseconds
+/// @param[in]  ns nanoseconds
 void
-convert_millis(struct timespec* tv, const uint64_t ms)
+convert_nanos(struct timespec* tv, const uint64_t ns)
 {
-  tv->tv_sec = ms / 1000;
-  tv->tv_nsec = (ms % 1000) * 1000000;
+  tv->tv_sec = ns / 1000000000;
+  tv->tv_nsec = (ns % 1000000000);
 }
 
 /// Encode a 64-bit unsigned integer for a reliable network transmission.
