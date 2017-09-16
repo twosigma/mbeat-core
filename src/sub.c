@@ -52,7 +52,8 @@ print_usage(void)
     "Multicast heartbeat subscriber - v%d.%d.%d\n"
     "Receive datagrams from selected network endpoints.\n\n"
 
-    "Usage: mbeat_sub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
+    "Usage:\n"
+    "  mbeat_sub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
 
     "Options:\n"
     "  -b BSZ  Receive buffer size in bytes.\n"

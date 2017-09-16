@@ -45,7 +45,8 @@ print_usage(void)
     "Multicast heartbeat publisher - v%d.%d.%d\n"
     "Send datagrams to selected network endpoints.\n\n"
 
-    "Usage: mbeat_pub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
+    "Usage:\n"
+    "  mbeat_pub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
 
     "Options:\n"
     "  -b BSZ  Send buffer size in bytes.\n"
