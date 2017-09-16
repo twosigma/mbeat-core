@@ -30,12 +30,12 @@
 
 
 // Default values for optional arguments.
-#define DEF_BUFFER_SIZE     0 // Zero denotes the system default.
-#define DEF_COUNT           5 // Number of published datagrams.
-#define DEF_INTERVAL     1000 // Publishing interval in milliseconds.
-#define DEF_TIME_TO_LIVE    1 // Time-To-Live for published datagrams.
-#define DEF_ERROR           0 // Process exit on publishing error.
-#define DEF_LOOP            0 // Looping policy on localhost.
+#define DEF_BUFFER_SIZE           0 // Zero denotes the system default.
+#define DEF_COUNT                 5 // Number of published datagrams.
+#define DEF_INTERVAL     1000000000 // One second publishing interval.
+#define DEF_TIME_TO_LIVE          1 // Time-To-Live for published datagrams.
+#define DEF_ERROR                 0 // Process exit on publishing error.
+#define DEF_LOOP                  0 // Looping policy on localhost.
 
 /// Print the utility usage information to the standard output.
 static void
