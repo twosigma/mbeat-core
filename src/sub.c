@@ -63,7 +63,7 @@ print_usage(void)
     "  -p PORT UDP port for all endpoints. (def=%d)\n"
     "  -r      Output the data in raw binary format.\n"
     "  -s SID  Only report datagrams with this session ID.\n"
-    "  -t MS   Timeout of the process after MS milliseconds.\n"
+    "  -t DUR  Timeout duration of the process.\n"
     "  -u      Disable output buffering.\n",
     MBEAT_VERSION_MAJOR,
     MBEAT_VERSION_MINOR,

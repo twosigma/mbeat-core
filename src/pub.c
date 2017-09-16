@@ -53,7 +53,7 @@ print_usage(void)
     "  -c CNT  Publish exactly CNT datagrams. (def=%d)\n"
     "  -e      Stop the process on publishing error.\n"
     "  -h      Print this help message.\n"
-    "  -i MS   Interval between published datagrams in milliseconds. (def=%d)\n"
+    "  -i DUR  Time interval between published datagrams. (def=1s)\n"
     "  -l      Turn on datagram looping.\n"
     "  -p PORT UDP port to use for all endpoints. (def=%d)\n"
     "  -s SID  Session ID for the current run. (def=random)\n"
@@ -62,7 +62,6 @@ print_usage(void)
     MBEAT_VERSION_MINOR,
     MBEAT_VERSION_PATCH,
     DEF_COUNT,
-    DEF_INTERVAL,
     MBEAT_PORT,
     DEF_TIME_TO_LIVE);
 }
