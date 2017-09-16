@@ -53,7 +53,7 @@ print_usage(void)
     "Receive datagrams from selected network endpoints.\n\n"
 
     "Usage:\n"
-    "  mbeat_sub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
+    "  msub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
 
     "Options:\n"
     "  -b BSZ  Receive buffer size in bytes.\n"

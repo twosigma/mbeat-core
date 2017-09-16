@@ -46,7 +46,7 @@ print_usage(void)
     "Send datagrams to selected network endpoints.\n\n"
 
     "Usage:\n"
-    "  mbeat_pub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
+    "  mpub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
 
     "Options:\n"
     "  -b BSZ  Send buffer size in bytes.\n"
