@@ -55,7 +55,7 @@ print_usage(void)
     "  -h      Print this help message.\n"
     "  -i DUR  Time interval between published datagrams. (def=1s)\n"
     "  -l      Turn on datagram looping.\n"
-    "  -p PORT UDP port to use for all endpoints. (def=%d)\n"
+    "  -p NUM  UDP port to use for all endpoints. (def=%d)\n"
     "  -s SID  Session ID for the current run. (def=random)\n"
     "  -t TTL  Set the Time-To-Live for all published datagrams. (def=%d)\n",
     MBEAT_VERSION_MAJOR,

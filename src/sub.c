@@ -60,7 +60,7 @@ print_usage(void)
     "  -e      Stop the process on receiving error.\n"
     "  -h      Print this help message.\n"
     "  -o OFF  Ignore payloads with lesser sequence number. (def=%d)\n"
-    "  -p PORT UDP port for all endpoints. (def=%d)\n"
+    "  -p NUM  UDP port for all endpoints. (def=%d)\n"
     "  -r      Output the data in raw binary format.\n"
     "  -s SID  Only report datagrams with this session ID.\n"
     "  -t DUR  Timeout duration of the process.\n"
