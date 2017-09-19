@@ -149,7 +149,10 @@ parse_maddr(endpoint* ep, const char* inp)
 /// @param[in]  argv   argument vector
 /// @param[in]  ep_cnt number of endpoint entries
 bool
-parse_endpoints(endpoint** eps, const int ep_idx, char* argv[], const int ep_cnt)
+parse_endpoints(endpoint** eps,
+                const int ep_idx,
+                char* argv[],
+                const int ep_cnt)
 {
   int i;
   int parts;
