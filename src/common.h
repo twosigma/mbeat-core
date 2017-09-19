@@ -26,8 +26,11 @@
 #define MBEAT_PAYLOAD_MAGIC   0x6d626974
 #define MBEAT_PAYLOAD_VERSION          2
 
-// Maximal number of allowed endpoints.
-#define ENDPOINT_MAX 2048
+// Maximal number of allowed endpoints. It is not clear yet what this number
+// should be, but given the availability of specifying IP-address ranges, this
+// number must cover a small number of /8 subnets. The current constant is
+// equal to (2^24) * 5.
+#define ENDPOINT_MAX 83886080
 
 void free_endpoints(endpoint* eps);
 bool cache_hostname(char* hname, const size_t hname_len);
