@@ -1,14 +1,13 @@
-mbeat_sub(8) -- multicast heartbeat subscriber 
-==============================================
+msub(8) -- multicast heartbeat subscriber 
+=========================================
 
 ## SYNOPSIS
-`mbeat_sub` [`-b` _BSZ_] [`-e` _CNT_] [`-h`] [`-o` _OFF_] [`-r`] [`-s` _SID_]
-[`-t` _MS_] [`-u`] _iface_=_maddr_:_mport_ [iface=maddr:mport ...]
+`msub` [OPTIONS] _iface_=_maddr_ [iface=maddr ...]
 
 ## DESCRIPTION
-The `mbeat_sub` utility subscribes to multicast UDP datagrams for a set of
-network endpoints.  It can be used in conjunction with the `mbeat_pub(8)`
-utility to test and debug network configurations.
+The `msub` utility subscribes to multicast UDP datagrams for a set of
+network endpoints.  It can be used in conjunction with the `mpub(8)`
+utility to test and debug multicast network configurations.
 
 ## OPTIONS
 The utility accepts the following command-line options:
@@ -17,9 +16,9 @@ The utility accepts the following command-line options:
     Sets the socket receive buffer size to _BSZ_ bytes. If not specified,
     the value defaults to the Linux kernel default.
 
-  * `-e` _CNT_:
-    If set, specifies the total number of datagrams to receive after which
-    the process will exit with success.
+  * `-e`:
+    The process will terminate when the first receiving error is encountered.
+    If not specified, the process will only print the relevant error message.
 
   * `-h`:
     Prints the usage message.
@@ -28,6 +27,9 @@ The utility accepts the following command-line options:
     Sets the sequence number offset, so that all mbeat payloads with sequence
     number lesser than _OFF_ are ignored. All subsequent sequence numbers are
     printed shifted by the _OFF_ value.
+
+  * `-p` _NUM_:
+    Specify the UDP port of all created endpoints. The default value is 22999.
 
   * `-r`:
     Enables the raw binary output instead of the default CSV.
@@ -38,8 +40,8 @@ The utility accepts the following command-line options:
     with session ID equal to _SID_ get printed out
     (see SESSION IDENTIFICATION). If not specified, all payloads are accepted.
 
-  * `-t` _MS_:
-    If set, the process will timeout and exit after _MS_ milliseconds.
+  * `-t` _DUR_:
+    If set, the process will terminate after the selected time duration passes.
 
   * `-u`:
     Disables output buffering.
@@ -47,38 +49,52 @@ The utility accepts the following command-line options:
 ## ENDPOINTS
 The positional arguments of the utility are endpoints: an ordered tuple
 consisting of local interface name, multicast group and the multicast port. It
-is possible to specify up to 2048 endpoints per subscriber.
+is possible to specify up to 83886080 endpoints.
 
 ## SESSION IDENTIFICATION
 In order to support multiple simultaneous runs of the tool, the publisher can
-stamp the payload with a session ID - a 32-bit unsigned integer - that
+stamp the payload with a session ID - a 64-bit unsigned integer - that
 identifies the set of outgoing packets. In return, the subscriber utility is
 able to exclusively listen to only certain session ID.
 
+## DURATION FORMAT
+The time duration has to be specified by an unsigned integer, followed by a
+time unit. An example of a valid duration is _1s_. Supported units are: _ns_,
+_us_, _ms_, _s, _m, _h, _d_. Zero duration is allowed, e.g. _0ms_.
+
 ## PAYLOAD FORMAT
 The format of the payload is binary. All numeric fields are unsigned
-integers in network byte order. The total payload size is 108 bytes.
+integers in network byte order, while the 64-bit numbers are split into high
+and low 32-bits, encoded in the network byte order. The total payload size is
+128 bytes. All valid payloads must start with a magic number 0x6d626974, which
+stands for four ASCII letters "mbit". The current format version is 2.
 
 Each payload contains the following fields in order:
 
- * format version number (2 bytes)
+ * magic value (4 bytes)
+ * format version number (1 byte)
+ * source Time-To-Live value (1 byte)
  * multicast port (2 bytes)
  * multicast group (4 bytes)
- * sequence number (4 bytes)
- * session ID (4 bytes)
- * local interface name (16 bytes)
- * local host name (64 bytes)
- * time of departure UNIX timestamp (8 bytes)
  * time of departure nanoseconds part (4 bytes)
+ * time of departure UNIX timestamp (8 bytes)
+ * session ID (8 bytes)
+ * sequence interation counter (8 bytes)
+ * sequence length (8 bytes)
+ * publisher's interface name (16 bytes)
+ * publisher's hostname (64 bytes)
 
 ## OUTPUT FORMAT - CSV
 The default output format is ASCII-encoded CSV file complaint with the RFC4180
-standard. The table has the following column headers:
+standard. The table has the following column headers (listed in order):
 
- * SequenceNum
  * SessionID
+ * SequenceNum
+ * SequenceLen
  * MulticastAddr
  * MulticastPort
+ * SrcTTL
+ * DstTTL
  * PubInterface
  * PubHostname
  * SubInterface
@@ -94,14 +110,17 @@ appending 4 more fields:
  * host name on the receivers end (64 bytes)
  * time of arrival UNIX timestamp (8 bytes)
  * time of arrival nanoseconds part (4 bytes)
+ * destination Time-To-Live value availability (1 byte)
+ * destination Time-To-Live value (1 byte)
+ * padding - unused (2 bytes)
 
-Unlike the CSV format, there is no header entry in raw binary. Similar to the
-payload representation, data is outputted in the big-endian byte order.
+Unlike the CSV format, there is no header entry in raw binary. Unlike the
+on-wire payload representation, data is outputted in the host byte order.
 
 ## RETURN VALUE
 The process returns _0_ on success, _1_ on failure.
-Normal program output is printed on standard output and warnings and errors
-on standard error.
+Normal program output is printed on the standard output stream, while warnings
+and errors appear on the standard error stream.
 
 ## SEE ALSO
-mbeat_pub(8)
+mpub(8)
