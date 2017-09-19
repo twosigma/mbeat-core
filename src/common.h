@@ -29,7 +29,7 @@
 // Maximal number of allowed endpoints.
 #define ENDPOINT_MAX 2048
 
-bool allocate_endpoints(endpoint** eps, const int ep_cnt);
+void free_endpoints(endpoint* eps);
 bool cache_hostname(char* hname, const size_t hname_len);
 void convert_nanos(struct timespec* tv, const uint64_t ms);
 uint64_t htonll(const uint64_t x);

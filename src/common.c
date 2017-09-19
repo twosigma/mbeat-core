@@ -23,31 +23,24 @@
 #include "common.h"
 
 
-/// Allocate memory for endpoint storage.
-/// @return status code
+/// Free memory used for endpoint storage.
 /// 
-/// @param[out] eps    endpoint array
-/// @param[in]  ep_cnt number of endpoints
-bool
-allocate_endpoints(endpoint** eps, const int ep_cnt)
+/// @param[in] eps endpoint list
+void
+free_endpoints(endpoint* eps)
 {
-  if (ep_cnt < 1) {
-    warnx("Expected at least one endpoint");
-    return false;
-  }
+  endpoint* ep;
+  endpoint* tofree;
 
-  if (ep_cnt > ENDPOINT_MAX) {
-    warnx("Too many endpoints, maximum is %d", ENDPOINT_MAX);
-    return false;
-  }
+  ep = eps;
+  tofree = NULL;
 
-  *eps = calloc(ep_cnt, sizeof(**eps));
-  if (*eps == NULL) {
-    warn("Unable to allocate memory for endpoints");
-    return false;
+  // Traverse all endpoints in the list and free each one.
+  while (ep != NULL) {
+    tofree = ep;
+    ep = ep->ep_next;
+    free(tofree);
   }
-
-  return true;
 }
 
 /// Obtain the hostname.

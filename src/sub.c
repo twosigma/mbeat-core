@@ -171,36 +171,35 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
 /// Create endpoint sockets and apply the interface settings.
 /// @return status code
 ///
-/// @param[in] eps    endpoint array
-/// @param[in] ep_cnt number of endpoint entries
-/// @param[in] opts   command-line options
+/// @param[in] eps  endpoint list 
+/// @param[in] opts command-line options
 static bool 
-create_sockets(endpoint* eps, const int ep_cnt, const sub_options* opts)
+create_sockets(endpoint* eps, const sub_options* opts)
 {
-  int i;
   int enable;
   int buf_size;
   struct sockaddr_in addr;
   struct ip_mreq req;
   char* mcast_str;
+  endpoint* ep;
 
   enable = 1;
-  for (i = 0; i < ep_cnt; i++) {
-    eps[i].ep_sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (eps[i].ep_sock == -1) {
+  for (ep = eps; ep != NULL ; ep = ep->ep_next) {
+    ep->ep_sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (ep->ep_sock == -1) {
       warn("Unable to create socket");
       return false;
     }
 
     // Enable multiple sockets being bound to the same address/port.
-    if (setsockopt(eps[i].ep_sock, SOL_SOCKET, SO_REUSEADDR,
+    if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_REUSEADDR,
                    &enable, sizeof(enable)) == -1) {
       warn("Unable to make the socket address reusable");
       return false;
     }
 
     // Request the Time-To-Live property of each incoming datagram.
-    if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_RECVTTL,
+    if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_RECVTTL,
                    &enable, sizeof(enable)) == -1) {
       warn("Unable to request Time-To-Live information");
       return false;
@@ -209,28 +208,28 @@ create_sockets(endpoint* eps, const int ep_cnt, const sub_options* opts)
     // Set the socket receive buffer size to the requested value.
     if (opts->so_buf != 0) {
       buf_size = (int)opts->so_buf;
-      if (setsockopt(eps[i].ep_sock, SOL_SOCKET, SO_RCVBUF,
+      if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_RCVBUF,
                      &buf_size, sizeof(buf_size)) == -1) {
         warn("Unable to set the socket receive buffer size to %d", buf_size);
         return false;
       }
     }
 
-    mcast_str = inet_ntoa(eps[i].ep_maddr);
+    mcast_str = inet_ntoa(ep->ep_maddr);
     addr.sin_family = AF_INET;
     addr.sin_port   = htons((uint16_t)opts->so_port);
-    addr.sin_addr   = eps[i].ep_maddr;
+    addr.sin_addr   = ep->ep_maddr;
 
     // Bind the socket to the multicast group.
-    if (bind(eps[i].ep_sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+    if (bind(ep->ep_sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
       warn("Unable to bind to address %s", mcast_str);
       return false;
     }
 
     // Subscribe the socket to the multicast group.
-    req.imr_interface.s_addr = eps[i].ep_iaddr.s_addr;
-    req.imr_multiaddr.s_addr = eps[i].ep_maddr.s_addr;
-    if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+    req.imr_interface.s_addr = ep->ep_iaddr.s_addr;
+    req.imr_multiaddr.s_addr = ep->ep_maddr.s_addr;
+    if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                    &req, sizeof(req)) == -1) {
       warn("Unable to join multicast group %s", mcast_str);
       return false;
@@ -259,23 +258,22 @@ create_event_queue(int* epfd)
 /// Add the socket associated with each endpoint to the event queue.
 /// @return status code
 ///
-/// @param[in] epfd   event queue
-/// @param[in] eps    endpoint array
-/// @param[in] ep_cnt number of endpoint entries
+/// @param[in] epfd event queue
+/// @param[in] eps  endpoint list
 static bool
-create_socket_events(const int epfd, endpoint* eps, const int ep_cnt)
+create_socket_events(const int epfd, endpoint* eps)
 {
   struct epoll_event ev;
-  int i;
+  endpoint* ep;
 
   // Add all sockets to the event queue. The auxiliary data pointer should
   // point at the endpoint structure, so that all relevant data can be
   // accessed when the event is triggered.
-  for (i = 0; i < ep_cnt; i++) {
+  for (ep = eps; ep != NULL; ep = ep->ep_next) {
     ev.events = EPOLLIN;
-    ev.data.ptr = &eps[i];
+    ev.data.ptr = ep;
 
-    if (epoll_ctl(epfd, EPOLL_CTL_ADD, eps[i].ep_sock, &ev) == -1) {
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, ep->ep_sock, &ev) == -1) {
       warn("Unable to add a socket to the event queue");
       return false;
     }
@@ -482,9 +480,7 @@ retrieve_ttl(int* ttl, struct msghdr* msg)
 /// @param[in]  hname hostname
 /// @param[in]  opts  command-line options
 static bool
-handle_event(endpoint* ep,
-             const char* hname,
-             const sub_options* opts)
+handle_event(endpoint* ep, const char* hname, const sub_options* opts)
 {
   payload pl;
   int ttl;
@@ -658,8 +654,9 @@ main(int argc, char* argv[])
   // Command-line options.
   sub_options opts;
 
-  // Endpoint array.
+  // Endpoint list.
   endpoint* eps;
+
   int ep_cnt;
   int ep_idx;
 
@@ -682,16 +679,12 @@ main(int argc, char* argv[])
   if (!parse_args(&ep_cnt, &ep_idx, &opts, argc, argv))
     return EXIT_FAILURE;
 
-  // Allocate memory for endpoints.
-  if (!allocate_endpoints(&eps, ep_cnt))
-    return EXIT_FAILURE;
-
   // Disable buffering on the standard output.
   if (!disable_buffering(&opts))
     return EXIT_FAILURE;
 
   // Parse and validate endpoints.
-  if (!parse_endpoints(eps, ep_idx, argv, ep_cnt))
+  if (!parse_endpoints(&eps, ep_idx, argv, ep_cnt))
     return EXIT_FAILURE;
 
   // Create the event queue.
@@ -699,11 +692,11 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Initialise the sockets based on selected interfaces.
-  if (!create_sockets(eps, ep_cnt, &opts))
+  if (!create_sockets(eps, &opts))
     return EXIT_FAILURE;
 
   // Create the socket events and add them to the event queue.
-  if (!create_socket_events(epfd, eps, ep_cnt))
+  if (!create_socket_events(epfd, eps))
     return EXIT_FAILURE;
 
   // Create a signal event and add it to the event queue.
@@ -718,9 +711,8 @@ main(int argc, char* argv[])
   if (!receive_datagrams(epfd, sigfd, hname, &opts))
     return EXIT_FAILURE;
 
-  // Flush the standard output stream.
   fflush(stdout);
-  free(eps);
+  free_endpoints(eps);
 
   return EXIT_SUCCESS;
 }

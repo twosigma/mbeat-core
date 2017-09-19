@@ -18,6 +18,7 @@
 #include <err.h>
 
 #include "parse.h"
+#include "common.h"
 
 
 /// Convert a string into an unsigned 64-bit integer.
@@ -148,7 +149,7 @@ parse_maddr(endpoint* ep, const char* inp)
 /// @param[in]  argv   argument vector
 /// @param[in]  ep_cnt number of endpoint entries
 bool
-parse_endpoints(endpoint* eps, const int ep_idx, char* argv[], const int ep_cnt)
+parse_endpoints(endpoint** eps, const int ep_idx, char* argv[], const int ep_cnt)
 {
   int i;
   int parts;
@@ -156,6 +157,17 @@ parse_endpoints(endpoint* eps, const int ep_idx, char* argv[], const int ep_cnt)
   char iname[256];
   char maddr[256];
   struct ifaddrs* ifaces;
+  endpoint* new;
+
+  if (ep_cnt < 1) {
+    warnx("Expected at least one endpoint");
+    return false;
+  }
+
+  if (ep_cnt > ENDPOINT_MAX) {
+    warnx("Too many endpoints, maximum is %d", ENDPOINT_MAX);
+    return false;
+  }
 
   result = true;
 
@@ -180,17 +192,18 @@ parse_endpoints(endpoint* eps, const int ep_idx, char* argv[], const int ep_cnt)
     }
 
     // Parse all endpoint parts.
-    memset(&eps[i], 0, sizeof(eps[i]));
-
-    if (!parse_iface(&eps[i], iname, ifaces)) {
-      result = false;
-      break;
+    new = malloc(sizeof(*new));
+    if (new == NULL) {
+      warn("Unable to allocate memory for endpoint");
+      return false;
     }
 
-    if (!parse_maddr(&eps[i], maddr)) {
-      result = false;
-      break;
-    }
+    if (!parse_iface(new, iname, ifaces)) { result = false; break; }
+    if (!parse_maddr(new, maddr))         { result = false; break; }
+
+    // Add the new endpoint to the head of the endpoint list.
+    new->ep_next = *eps;
+    *eps = new;
   }
 
   // Release resources held by the interface list.

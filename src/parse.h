@@ -13,7 +13,7 @@ bool parse_uint64(uint64_t* out,
                   const uint64_t max);
 
 bool parse_duration(uint64_t* out, const char* inp);
-bool parse_endpoints(endpoint* eps,
+bool parse_endpoints(endpoint** eps,
                      const int ep_idx,
                      char* argv[],
                      const int ep_cnt);

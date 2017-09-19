@@ -191,27 +191,27 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
 /// Create endpoint sockets and apply the interface settings.
 /// @return status code
 ///
-/// @param[in] eps    endpoint array
-/// @param[in] ep_cnt number of endpoint elements
-/// @param[in] opts   command-line options
+/// @param[in] eps  endpoint list
+/// @param[in] opts command-line options
 static bool 
-create_sockets(endpoint* eps, const int ep_cnt, const pub_options* opts)
+create_sockets(endpoint* eps, const pub_options* opts)
 {
-  int i;
   int enable;
   uint8_t ttl_set;
   int buf_size;
+  endpoint* ep;
 
   enable = 1;
-  for (i = 0; i < ep_cnt; i++) {
-    eps[i].ep_sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (eps[i].ep_sock == -1) {
+  for (ep = eps; ep != NULL; ep = ep->ep_next) {
+    // Create a UDP socket.
+    ep->ep_sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (ep->ep_sock == -1) {
       warn("Unable to create socket");
       return false;
     }
 
     // Enable multiple sockets being bound to the same address/port.
-    if (setsockopt(eps[i].ep_sock, SOL_SOCKET, SO_REUSEADDR,
+    if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_REUSEADDR,
                    &enable, sizeof(enable)) == -1) {
       warn("Unable to make the socket address reusable");
       return false;
@@ -220,7 +220,7 @@ create_sockets(endpoint* eps, const int ep_cnt, const pub_options* opts)
     // Set the socket send buffer size to the requested value.
     if (opts->po_buf != 0) {
       buf_size = (int)opts->po_buf;
-      if (setsockopt(eps[i].ep_sock, SOL_SOCKET, SO_SNDBUF,
+      if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_SNDBUF,
                      &buf_size, sizeof(buf_size)) == -1) {
         warn("Unable to set the socket send buffer size to %d", buf_size);
         return false;
@@ -228,14 +228,14 @@ create_sockets(endpoint* eps, const int ep_cnt, const pub_options* opts)
     }
 
     // Limit the socket to the selected interface.
-    if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_MULTICAST_IF,
-                   &(eps[i].ep_iaddr), sizeof(eps[i].ep_iaddr)) == -1) {
-      warn("Unable to select socket interface '%s'", eps[i].ep_iname);
+    if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_MULTICAST_IF,
+                   &(ep->ep_iaddr), sizeof(ep->ep_iaddr)) == -1) {
+      warn("Unable to select socket interface '%s'", ep->ep_iname);
       return false;
     }
 
     // Set the datagram looping policy.
-    if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_MULTICAST_LOOP,
+    if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_MULTICAST_LOOP,
                    &opts->po_lop, sizeof(opts->po_lop)) == -1) {
       warn("Unable to set the localhost looping policy");
       return false;
@@ -243,7 +243,7 @@ create_sockets(endpoint* eps, const int ep_cnt, const pub_options* opts)
 
     // Adjust the Time-To-Live setting to reach farther networks.
     ttl_set = (uint8_t)opts->po_ttl;
-    if (setsockopt(eps[i].ep_sock, IPPROTO_IP, IP_MULTICAST_TTL,
+    if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_MULTICAST_TTL,
                    &ttl_set, sizeof(ttl_set)) == -1) {
       warn("Unable to set the Time-To-Live of datagrams");
       return false;
@@ -290,24 +290,20 @@ fill_payload(payload* pl,
 /// Publish datagrams to all requested multicast groups.
 /// @return status code
 ///
-/// @param[in] eps    endpoint array
-/// @param[in] ep_cnt number of endpoint entries
-/// @param[in] hname  local hostname
-/// @param[in] opts   command-line options
+/// @param[in] eps   endpoint array
+/// @param[in] hname local hostname
+/// @param[in] opts  command-line options
 static bool
-publish_datagrams(endpoint* eps,
-                  const int ep_cnt,
-                  const char* hname,
-                  const pub_options* opts)
+publish_datagrams(endpoint* eps, const char* hname, const pub_options* opts)
 {
   uint64_t c;
-  int i;
   ssize_t ret;
   payload pl;
   struct timespec ts;
   struct sockaddr_in addr;
   struct msghdr msg;
   struct iovec data;
+  endpoint* e;
 
   convert_nanos(&ts, opts->po_int);
 
@@ -317,11 +313,11 @@ publish_datagrams(endpoint* eps,
 
   // Publish the requested number of datagrams.
   for (c = 0; c < opts->po_cnt; c++) {
-    for (i = 0; i < ep_cnt; i++) {
-      fill_payload(&pl, &eps[i], c, hname, opts);
+    for (e = eps; e != NULL; e = e->ep_next) {
+      fill_payload(&pl, e, c, hname, opts);
 
       // Set the multicast address.
-      addr.sin_addr.s_addr = eps[i].ep_maddr.s_addr;
+      addr.sin_addr.s_addr = e->ep_maddr.s_addr;
 
       // Prepare payload data.
       data.iov_base = &pl;
@@ -335,8 +331,8 @@ publish_datagrams(endpoint* eps,
       msg.msg_control    = NULL;
       msg.msg_controllen = 0;
 
-      // Send the payload.
-      ret = sendmsg(eps[i].ep_sock, &msg, MSG_DONTWAIT);
+      // Publish the payload.
+      ret = sendmsg(e->ep_sock, &msg, MSG_DONTWAIT);
       if (ret == 0) {
         warn("Unable to send datagram");
 
@@ -360,8 +356,9 @@ main(int argc, char* argv[])
   // Command-line options.
   pub_options opts;
 
-  // Endpoint array.
+  // Endpoint list.
   endpoint* eps;
+
   int ep_cnt;
   int ep_idx;
 
@@ -380,23 +377,19 @@ main(int argc, char* argv[])
   if (!parse_args(&ep_cnt, &ep_idx, &opts, argc, argv))
     return EXIT_FAILURE;
 
-  // Allocate memory for endpoints.
-  if (!allocate_endpoints(&eps, ep_cnt))
-    return EXIT_FAILURE;
-
   // Parse and validate endpoints.
-  if (!parse_endpoints(eps, ep_idx, argv, ep_cnt))
+  if (!parse_endpoints(&eps, ep_idx, argv, ep_cnt))
     return EXIT_FAILURE;
 
   // Initialise the sockets based on selected interfaces.
-  if (!create_sockets(eps, ep_cnt, &opts))
+  if (!create_sockets(eps, &opts))
     return EXIT_FAILURE;
 
   // Publish datagrams to selected multicast groups.
-  if (!publish_datagrams(eps, ep_cnt, hname, &opts))
+  if (!publish_datagrams(eps, hname, &opts))
     return EXIT_FAILURE;
 
-  free(eps);
+  free_endpoints(eps);
 
   return EXIT_SUCCESS;
 }
