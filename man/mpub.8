@@ -58,7 +58,7 @@ The positional arguments of the utility are endpoints: an ordered tuple consisti
 In order to support multiple simultaneous runs of the tool, the publisher can stamp the payload with a session ID \- a 64\-bit unsigned integer \- that identifies the set of outgoing packets\. Similarly the subscriber utility is able to filter out everything but a given session ID\.
 .
 .SH "DURATION FORMAT"
-The time duration has to be specified by an unsigned integer, followed by a time unit\. An example of a valid duration is \fI1s\fR\. Supported units are: \fIns\fR, \fIus\fR, \fIms\fR, \fIs,\fRm, \fIh,\fRd\fI\. Zero duration is allowed, e\.g\.\fR0ms_\.
+The time duration has to be specified by an unsigned integer, followed by a time unit\. An example of a valid duration is \fI1s\fR\. Supported units are: \fIns\fR, \fIus\fR, \fIms\fR, \fIs\fR, \fIm\fR, \fIh\fR, \fId\fR\. Zero duration is allowed, e\.g\. \fI0ms\fR\.
 .
 .SH "PAYLOAD FORMAT"
 The format of the payload is binary\. All numeric fields are unsigned integers in network byte order, while the 64\-bit numbers are split into high and low 32\-bits, encoded in the network byte order\. The total payload size is 128 bytes\. All valid payloads must start with a magic number 0x6d626974, which stands for four ASCII letters "mbit"\. The current format version is 2\.

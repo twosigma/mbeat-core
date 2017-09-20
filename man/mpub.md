@@ -60,7 +60,7 @@ able to filter out everything but a given session ID.
 ## DURATION FORMAT
 The time duration has to be specified by an unsigned integer, followed by a
 time unit. An example of a valid duration is _1s_. Supported units are: _ns_,
-_us_, _ms_, _s, _m, _h, _d_. Zero duration is allowed, e.g. _0ms_.
+_us_, _ms_, _s_, _m_, _h_, _d_. Zero duration is allowed, e.g. _0ms_.
 
 ## PAYLOAD FORMAT
 The format of the payload is binary. All numeric fields are unsigned
