@@ -262,7 +262,7 @@ create_sockets(endpoint* eps, const pub_options* opts)
 /// @param[in]  opts  command-line options
 static void
 fill_payload(payload* pl,
-             endpoint* ep,
+             const endpoint* ep,
              const uint32_t snum,
              const char* hname,
              const pub_options* opts)
