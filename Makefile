@@ -11,6 +11,7 @@ FEATURE_TEST = -D_BSD_SOURCE             \
                -D_DEFAULT_SOURCE
 CFLAGS = -std=c99 -Wall -Wextra $(FEATURE_TEST)
 LDFLAGS = -lrt
+BINDIR = /usr/bin
 
 all: bin/mpub bin/msub
 
@@ -33,6 +34,10 @@ obj/pub.o: src/pub.c
 
 obj/sub.o: src/sub.c
 	$(CC) $(CFLAGS) -c src/sub.c -o obj/sub.o
+
+install:
+	install -s -m 0755 bin/mpub $(BINDIR)/mpub
+	install -s -m 0755 bin/msub $(BINDIR)/msub
 
 clean:
 	rm -f bin/mpub
