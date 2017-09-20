@@ -41,11 +41,11 @@ typedef struct _raw_output {
 
 /// Connection between a local interface and a multicast group.
 typedef struct _endpoint {
-  int            ep_sock;             ///< Connection socket.
-  struct in_addr ep_maddr;            ///< Multicast address.
-  struct in_addr ep_iaddr;            ///< Local interface address.
-  char           ep_iname[INAME_LEN]; ///< Local interface name.
-  struct _endpoint* ep_next;          ///< Link to the next endpoint.
+  int               ep_sock;             ///< Connection socket.
+  struct in_addr    ep_maddr;            ///< Multicast address.
+  struct in_addr    ep_iaddr;            ///< Local interface address.
+  char              ep_iname[INAME_LEN]; ///< Local interface name.
+  struct _endpoint* ep_next;             ///< Link to the next endpoint.
 } endpoint;
 
 /// Command-line options of the publisher utility.
