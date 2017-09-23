@@ -345,19 +345,19 @@ print_payload_csv(const payload* pl,
   else
     strcpy(ttl_str, "N/A");
 
-  printf("%" PRIu64 ","                 // SessionID
-         "%" PRIu64 ","                 // SequenceNum
-         "%" PRIu64 ","                 // SequenceLen
-         "%s,"                          // MulticastAddr
-         "%" PRIu64 ","                 // MulticastPort
+  printf("%" PRIu64 ","                 // SID
+         "%" PRIu64 ","                 // SeqNum
+         "%" PRIu64 ","                 // SeqLen
+         "%s,"                          // McastAddr
+         "%" PRIu64 ","                 // McastPort
          "%" PRIu8  ","                 // SrcTTL
          "%s,"                          // DstTTL
-         "%.*s,"                        // PubInterface
-         "%.*s,"                        // PubHostname
-         "%.*s,"                        // SubInterface
-         "%.*s,"                        // SubHostname
-         "%" PRIu64 ".%.9" PRIu32 ","   // TimeOfDeparture
-         "%" PRIu64 ".%.9" PRIu32 "\n", // TimeOfArrival
+         "%.*s,"                        // PubIf
+         "%.*s,"                        // PubHost
+         "%.*s,"                        // SubIf
+         "%.*s,"                        // SubHost
+         "%" PRIu64 ".%.9" PRIu32 ","   // TimeOfDep
+         "%" PRIu64 ".%.9" PRIu32 "\n", // TimeOfArr
     pl->pl_sid,
     pl->pl_snum,
     pl->pl_slen,
@@ -571,9 +571,8 @@ receive_datagrams(const int epfd,
 
   // Print the CSV header.
   if (!opts->so_raw)
-    printf("SessionID,SequenceNum,SequenceLen,MulticastAddr,MulticastPort,"
-           "SrcTTL,DstTTL,PubInterface,PubHostname,SubInterface,SubHostname,"
-           "TimeOfDeparture,TimeOfArrival\n");
+    printf("SID,SeqNum,SeqLen,McastAddr,McastPort,SrcTTL,DstTTL,PubIf,PubHost,"
+           "SubIf,SubHost,TimeDep,TimeArr\n");
 
   // Receive datagrams on all initialized connections.
   while (1) {
