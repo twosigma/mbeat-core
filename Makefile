@@ -9,7 +9,7 @@ FEATURE_TEST = -D_BSD_SOURCE             \
                -D_XOPEN_SOURCE           \
                -D_POSIX_C_SOURCE=200809L \
                -D_DEFAULT_SOURCE
-CFLAGS = -std=c99 -Wall -Wextra $(FEATURE_TEST)
+CFLAGS = -std=c99 -Wall -Wextra -Werror $(FEATURE_TEST)
 LDFLAGS = -lrt
 BINDIR = /usr/bin
 
