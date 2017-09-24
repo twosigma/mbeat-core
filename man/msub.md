@@ -1,4 +1,4 @@
-msub(8) -- multicast heartbeat subscriber 
+msub(8) -- multicast heartbeat subscriber
 =========================================
 
 ## SYNOPSIS

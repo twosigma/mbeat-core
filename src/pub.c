@@ -95,11 +95,11 @@ generate_sid(void)
 /// @return status code
 ///
 /// @param[out] ep_cnt endpoint count
-/// @param[out] ep_idx endpoint start index 
+/// @param[out] ep_idx endpoint start index
 /// @param[out] opts   command-line options
 /// @param[in]  argc   argument count
 /// @param[in]  argv   argument vector
-static bool 
+static bool
 parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
 {
   int opt;
@@ -193,7 +193,7 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
 ///
 /// @param[in] eps  endpoint list
 /// @param[in] opts command-line options
-static bool 
+static bool
 create_sockets(endpoint* eps, const pub_options* opts)
 {
   int enable;

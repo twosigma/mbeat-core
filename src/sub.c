@@ -84,11 +84,11 @@ print_usage(void)
 /// @return status code
 ///
 /// @param[out] ep_cnt endpoint count
-/// @param[out] ep_idx endpoint start index 
+/// @param[out] ep_idx endpoint start index
 /// @param[out] opts   command-line options
 /// @param[in]  argc   argument count
 /// @param[in]  argv   argument vector
-static bool 
+static bool
 parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
 {
   int opt;
@@ -179,9 +179,9 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
 /// Create endpoint sockets and apply the interface settings.
 /// @return status code
 ///
-/// @param[in] eps  endpoint list 
+/// @param[in] eps  endpoint list
 /// @param[in] opts command-line options
-static bool 
+static bool
 create_sockets(endpoint* eps, const sub_options* opts)
 {
   int enable;
@@ -279,7 +279,7 @@ static bool
 create_socket_events(const int eqfd, endpoint* eps)
 {
   endpoint* ep;
-  
+
   #if defined(__linux__)
     struct epoll_event ev;
   #endif
@@ -292,7 +292,6 @@ create_socket_events(const int eqfd, endpoint* eps)
   // point at the endpoint structure, so that all relevant data can be
   // accessed when the event is triggered.
   for (ep = eps; ep != NULL; ep = ep->ep_next) {
-    
     #if defined(__linux__)
       ev.events = EPOLLIN;
       ev.data.ptr = ep;
@@ -321,7 +320,7 @@ create_socket_events(const int eqfd, endpoint* eps)
 /// @param[out] sigfd signal file descriptor
 /// @param[in]  eqfd  event queue
 /// @param[in]  opts  command-line options
-static bool 
+static bool
 create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
 {
   sigset_t mask;

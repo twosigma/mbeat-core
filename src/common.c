@@ -24,7 +24,7 @@
 
 
 /// Free memory used for endpoint storage.
-/// 
+///
 /// @param[in] eps endpoint list
 void
 free_endpoints(endpoint* eps)

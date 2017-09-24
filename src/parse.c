@@ -56,7 +56,7 @@ parse_uint64(uint64_t* out,
 
 /// Find the lesser of two unsigned integers.
 /// @return lesser of the two numbers
-/// 
+///
 /// @param[in] a first number
 /// @param[in] b second number
 static size_t
@@ -71,7 +71,7 @@ lesser(const size_t a, const size_t b)
 /// @param[out] ep  connection endpoint
 /// @param[in]  inp input string
 /// @param[in]  ifs list of interfaces
-static bool 
+static bool
 parse_iface(endpoint* ep, const char* inp, const struct ifaddrs* ifaces)
 {
   const struct ifaddrs* iface;
@@ -114,7 +114,7 @@ parse_iface(endpoint* ep, const char* inp, const struct ifaddrs* ifaces)
 
   // Copy the interface name to the endpoint.
   memcpy(ep->ep_iname, inp, lesser(INAME_LEN, strlen(inp)));
-  
+
   return true;
 }
 
@@ -123,7 +123,7 @@ parse_iface(endpoint* ep, const char* inp, const struct ifaddrs* ifaces)
 ///
 /// @param[out] ep  connection endpoint
 /// @param[in]  inp input string
-static bool 
+static bool
 parse_maddr(endpoint* ep, const char* inp)
 {
   // Convert and validate the multicast address.
@@ -219,7 +219,7 @@ parse_endpoints(endpoint** eps,
 ///
 /// @param[out] mult multiplier
 /// @param[in]  unit unit abbreviation
-static void 
+static void
 parse_unit(uint64_t* mult, const char* unit)
 {
   if (strcmp(unit, "ns") == 0) *mult = 1LL;
@@ -282,5 +282,5 @@ parse_duration(uint64_t* dur, const char* inp)
   }
 
   *dur = x;
-  return true; 
+  return true;
 }
