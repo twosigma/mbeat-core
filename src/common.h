@@ -16,7 +16,7 @@
 
 // Semantic versioning scheme.
 #define MBEAT_VERSION_MAJOR 1
-#define MBEAT_VERSION_MINOR 6
+#define MBEAT_VERSION_MINOR 7
 #define MBEAT_VERSION_PATCH 0
 
 // Standard UDP port.
