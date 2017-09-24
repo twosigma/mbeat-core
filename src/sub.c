@@ -6,10 +6,18 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/epoll.h>
 #include <sys/time.h>
-#include <sys/signalfd.h>
 #include <sys/uio.h>
+
+// Select the appropriate event queue.
+#if defined(__linux__)
+  #include <sys/epoll.h>
+  #include <sys/signalfd.h>
+#elif defined(__FreeBSD__)
+  #include <sys/event.h>
+#else
+  #error "System not supported."
+#endif
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -242,12 +250,19 @@ create_sockets(endpoint* eps, const sub_options* opts)
 /// Create the event queue.
 /// @return status code
 ///
-/// @param[out] epfd event queue
+/// @param[out] eqfd event queue
 static bool
-create_event_queue(int* epfd)
+create_event_queue(int* eqfd)
 {
-  *epfd = epoll_create(ENDPOINT_MAX);
-  if (*epfd < 0) {
+  #if defined(__linux__)
+    *eqfd = epoll_create(ENDPOINT_MAX);
+  #endif
+
+  #if defined(__FreeBSD__)
+    *eqfd = kqueue();
+  #endif
+
+  if (*eqfd < 0) {
     warn("Unable to create event queue");
     return false;
   }
@@ -258,25 +273,43 @@ create_event_queue(int* epfd)
 /// Add the socket associated with each endpoint to the event queue.
 /// @return status code
 ///
-/// @param[in] epfd event queue
+/// @param[in] eqfd event queue
 /// @param[in] eps  endpoint list
 static bool
-create_socket_events(const int epfd, endpoint* eps)
+create_socket_events(const int eqfd, endpoint* eps)
 {
-  struct epoll_event ev;
   endpoint* ep;
+  
+  #if defined(__linux__)
+    struct epoll_event ev;
+  #endif
+
+  #if defined(__FreeBSD__)
+    struct kevent ev;
+  #endif
 
   // Add all sockets to the event queue. The auxiliary data pointer should
   // point at the endpoint structure, so that all relevant data can be
   // accessed when the event is triggered.
   for (ep = eps; ep != NULL; ep = ep->ep_next) {
-    ev.events = EPOLLIN;
-    ev.data.ptr = ep;
+    
+    #if defined(__linux__)
+      ev.events = EPOLLIN;
+      ev.data.ptr = ep;
 
-    if (epoll_ctl(epfd, EPOLL_CTL_ADD, ep->ep_sock, &ev) == -1) {
-      warn("Unable to add a socket to the event queue");
-      return false;
-    }
+      if (epoll_ctl(eqfd, EPOLL_CTL_ADD, ep->ep_sock, &ev) == -1) {
+        warn("Unable to add a socket to the event queue");
+        return false;
+      }
+    #endif
+
+    #if defined(__FreeBSD__)
+      EV_SET(&ev, ep->ep_sock, EVFILT_READ, EV_ADD, 0, 0, ep);
+      if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
+        warn("Unable to add a socket to the event queue");
+        return false;
+      }
+    #endif
   }
 
   return true;
@@ -286,13 +319,20 @@ create_socket_events(const int epfd, endpoint* eps)
 /// @return status code
 ///
 /// @param[out] sigfd signal file descriptor
-/// @param[in]  epfd  epoll(2) file descriptor
+/// @param[in]  eqfd  event queue
 /// @param[in]  opts  command-line options
 static bool 
-create_signal_event(int* sigfd, const int epfd, const sub_options* opts)
+create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
 {
-  struct epoll_event ev;
   sigset_t mask;
+
+  #if defined(__linux__)
+    struct epoll_event ev;
+  #endif
+
+  #if defined(__FreeBSD__)
+    struct kevent ev;
+  #endif
 
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);    // User-generated ^C interrupt.
@@ -304,20 +344,50 @@ create_signal_event(int* sigfd, const int epfd, const sub_options* opts)
   // Prevent the above signals from asynchronous handling.
   sigprocmask(SIG_BLOCK, &mask, NULL);
 
-  // Create a new signal file descriptor.
-  *sigfd = signalfd(-1, &mask, 0);
-  if (*sigfd == -1) {
-    warn("Unable to create signal file descriptor");
-    return false;
-  }
+  #if defined(__linux__)
+    // Create a new signal file descriptor.
+    *sigfd = signalfd(-1, &mask, 0);
+    if (*sigfd == -1) {
+      warn("Unable to create signal file descriptor");
+      return false;
+    }
 
-  // Add the signal file descriptor to the event queue.
-  ev.events = EPOLLIN;
-  ev.data.fd = *sigfd;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, *sigfd, &ev) == -1) {
-    warn("Unable to add the signal file descriptor to the event queue");
-    return false;
-  }
+    // Add the signal file descriptor to the event queue.
+    ev.events = EPOLLIN;
+    ev.data.fd = *sigfd;
+    if (epoll_ctl(eqfd, EPOLL_CTL_ADD, *sigfd, &ev) == -1) {
+      warn("Unable to add the signal file descriptor to the event queue");
+      return false;
+    }
+  #endif
+
+  #if defined(__FreeBSD__)
+    // Avoid unused variable warning.
+    (void)sigfd;
+
+    // Add SIGINT to the event queue.
+    EV_SET(&ev, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+    if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
+      warn("Unable to add SIGINT to the event queue");
+      return false;
+    }
+
+    // Add SIGHUP to the event queue.
+    EV_SET(&ev, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+    if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
+      warn("Unable to add SIGINT to the event queue");
+      return false;
+    }
+
+    // Add SIGALRM to the event queue.
+    if (opts->so_tout > 0) {
+      EV_SET(&ev, SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
+      if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
+        warn("Unable to add SIGALRM to the event queue");
+        return false;
+      }
+    }
+  #endif
 
   return true;
 }
@@ -468,9 +538,18 @@ static bool
 retrieve_ttl(int* ttl, struct msghdr* msg)
 {
   struct cmsghdr* cmsg;
+  int type;
+
+  #if defined(__linux__)
+    type = IP_TTL;
+  #endif
+
+  #if defined(__FreeBSD__)
+    type = IP_RECVTTL;
+  #endif
 
   for (cmsg = CMSG_FIRSTHDR(msg); cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
-    if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TTL) {
+    if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == type) {
       *ttl = *(int*)CMSG_DATA(cmsg);
       return true;
     }
@@ -562,19 +641,26 @@ handle_event(endpoint* ep, const char* hname, const sub_options* opts)
 /// Receive datagrams on all initialized connections.
 /// @return status code
 ///
-/// @param[in] epfd  epoll(2) file descriptor
+/// @param[in] eqfd  epoll(2) file descriptor
 /// @param[in] sigfd signal file descriptor
 /// @param[in] hname hostname
 /// @param[in] opts  command-line options
 static bool
-receive_datagrams(const int epfd,
+receive_datagrams(const int eqfd,
                   const int sigfd,
                   const char* hname,
                   const sub_options* opts)
 {
-  struct epoll_event evs[64];
   int ev_cnt;
   int i;
+
+  #if defined(__linux__)
+    struct epoll_event evs[64];
+  #endif
+
+  #if defined(__FreeBSD__)
+    struct kevent evs[64];
+  #endif
 
   // Print the CSV header.
   if (!opts->so_raw)
@@ -583,7 +669,14 @@ receive_datagrams(const int epfd,
 
   // Receive datagrams on all initialized connections.
   while (1) {
-    ev_cnt = epoll_wait(epfd, evs, 64, -1);
+    #if defined(__linux__)
+      ev_cnt = epoll_wait(eqfd, evs, 64, -1);
+    #endif
+
+    #if defined(__FreeBSD__)
+      ev_cnt = kevent(eqfd, NULL, 0, evs, 64, NULL);
+    #endif
+
     if (ev_cnt < 0) {
       warn("Event queue reading failed");
       return false;
@@ -591,13 +684,29 @@ receive_datagrams(const int epfd,
 
     // Handle each event.
     for (i = 0; i < ev_cnt; i++) {
-      // Handle the signal event for SIGINT, SIGHUP and optionally SIGALRM.
-      if (evs[i].data.fd == sigfd)
-        return true;
 
-      // Handle socket events.
-      if (!handle_event(evs[i].data.ptr, hname, opts))
-        return false;
+      #if defined(__linux__)
+        // Handle the signal event for SIGINT, SIGHUP and optionally SIGALRM.
+        if (evs[i].data.fd == sigfd)
+          return true;
+
+        // Handle socket events.
+        if (!handle_event(evs[i].data.ptr, hname, opts))
+          return false;
+      #endif
+
+      #if defined(__FreeBSD__)
+        // Avoid unused variable warning.
+        (void)sigfd;
+
+        // Handle the signal event for SIGINT, SIGHUP and optionally SIGALRM.
+        if (evs[i].filter == EVFILT_SIGNAL)
+          return true;
+
+        // Handle socket events.
+        if (!handle_event(evs[i].udata, hname, opts))
+          return false;
+      #endif
     }
   }
 
@@ -667,7 +776,7 @@ main(int argc, char* argv[])
   int ep_idx;
 
   // Signal and event management.
-  int epfd;
+  int eqfd;
   int sigfd;
 
   // Cached hostname.
@@ -694,7 +803,7 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Create the event queue.
-  if (!create_event_queue(&epfd))
+  if (!create_event_queue(&eqfd))
     return EXIT_FAILURE;
 
   // Initialise the sockets based on selected interfaces.
@@ -702,11 +811,11 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Create the socket events and add them to the event queue.
-  if (!create_socket_events(epfd, eps))
+  if (!create_socket_events(eqfd, eps))
     return EXIT_FAILURE;
 
   // Create a signal event and add it to the event queue.
-  if (!create_signal_event(&sigfd, epfd, &opts))
+  if (!create_signal_event(&sigfd, eqfd, &opts))
     return EXIT_FAILURE;
 
   // Install the signal alarm.
@@ -714,7 +823,7 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Start receiving datagrams.
-  if (!receive_datagrams(epfd, sigfd, hname, &opts))
+  if (!receive_datagrams(eqfd, sigfd, hname, &opts))
     return EXIT_FAILURE;
 
   fflush(stdout);
