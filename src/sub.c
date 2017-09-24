@@ -339,11 +339,18 @@ print_payload_csv(const payload* pl,
                   const sub_options* opts)
 {
   char ttl_str[8];
+  uint32_t dep;
+  uint32_t arr;
 
+  // Destination Time-To-Live string, depending on it's availability.
   if (0 <= ttl && ttl <= 255)
     snprintf(ttl_str, sizeof(ttl_str), "%d", ttl);
   else
     strcpy(ttl_str, "N/A");
+
+  // Round the nanosecond time parts of departure and arrival to 3 digits.
+  dep = pl->pl_nsec / (uint32_t)1000000;
+  arr = (uint32_t)tv->tv_nsec / (uint32_t)1000000;
 
   printf("%" PRIu64 ","                 // SID
          "%" PRIu64 ","                 // SeqNum
@@ -356,8 +363,8 @@ print_payload_csv(const payload* pl,
          "%.*s,"                        // PubHost
          "%.*s,"                        // SubIf
          "%.*s,"                        // SubHost
-         "%" PRIu64 ".%.9" PRIu32 ","   // TimeOfDep
-         "%" PRIu64 ".%.9" PRIu32 "\n", // TimeOfArr
+         "%" PRIu64 ".%.3" PRIu32 ","   // TimeOfDep
+         "%" PRIu64 ".%.3" PRIu32 "\n", // TimeOfArr
     pl->pl_sid,
     pl->pl_snum,
     pl->pl_slen,
@@ -370,9 +377,9 @@ print_payload_csv(const payload* pl,
     (int)sizeof(ep->ep_iname), ep->ep_iname,
     HNAME_LEN, hname,
     pl->pl_sec,
-    pl->pl_nsec,
+    dep,
     (uint64_t)tv->tv_sec,
-    (uint32_t)tv->tv_nsec);
+    arr);
 }
 
 /// Print the payload content in the raw binary format (big-endian) to the
