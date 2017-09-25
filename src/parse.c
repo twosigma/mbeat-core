@@ -54,17 +54,6 @@ parse_uint64(uint64_t* out,
   return true;
 }
 
-/// Find the lesser of two unsigned integers.
-/// @return lesser of the two numbers
-///
-/// @param[in] a first number
-/// @param[in] b second number
-static size_t
-lesser(const size_t a, const size_t b)
-{
-  return a < b ? a : b;
-}
-
 /// Parse and validate the interface.
 /// @return status code
 ///
@@ -86,25 +75,34 @@ parse_iface(endpoint* ep, const char* inp, const struct ifaddrs* ifaces)
     if (iface->ifa_addr->sa_family != AF_INET)
       continue;
 
-    if (strcmp(inp, iface->ifa_name) == 0)
+    // Skip loopback devices when selecting the default interface.
+    if (inp == NULL && (iface->ifa_flags & IFF_LOOPBACK))
+      continue;
+
+    if (inp == NULL || strcmp(inp, iface->ifa_name) == 0)
       break;
   }
 
   // If no suitable interface was found.
   if (iface == NULL) {
-    warnx("Unable to find interface '%s' with an IPv4 address", inp);
+    if (inp == NULL)
+      warnx("Unable to find any suitable interface");
+    else
+      warnx("Unable to find interface '%s' with an IPv4 address", inp);
+
     return false;
   }
 
   // Make sure that the interface is up.
   if (!(iface->ifa_flags & IFF_UP)) {
-    warnx("Interface '%s' is not up", inp);
+    warnx("Interface '%s' is not up", iface->ifa_name);
     return false;
   }
 
   // Make sure that the interface supports multicast traffic.
   if (!(iface->ifa_flags & IFF_MULTICAST)) {
-    warnx("Interface '%s' is not available for multicast traffic", inp);
+    warnx("Interface '%s' is not available for multicast traffic",
+          iface->ifa_name);
     return false;
   }
 
@@ -113,7 +111,8 @@ parse_iface(endpoint* ep, const char* inp, const struct ifaddrs* ifaces)
   ep->ep_iaddr = if_addr_in->sin_addr;
 
   // Copy the interface name to the endpoint.
-  memcpy(ep->ep_iname, inp, lesser(INAME_LEN, strlen(inp)));
+  memset(ep->ep_iname, '\0', sizeof(ep->ep_iname));
+  strncpy(ep->ep_iname, iface->ifa_name, sizeof(ep->ep_iname));
 
   return true;
 }
@@ -141,6 +140,54 @@ parse_maddr(endpoint* ep, const char* inp)
   return true;
 }
 
+/// Parse a single endpoint.
+/// @return status code
+///
+/// @param[out] ep  endpoint
+/// @param[in]  inp input string
+/// @param[in]  ifs list of network interfaces
+static bool
+parse_endpoint(endpoint* ep, char* inp, const struct ifaddrs* ifs)
+{
+  char* eq;
+  const char* iname;
+  const char* maddr;
+
+  // Validate the input string.
+  if (inp == NULL || inp[0] == '\0') {
+    warnx("Empty endpoint definition");
+    return false;
+  }
+
+  // Split the string with the first equals sign and optionally parse
+  // both parts of the endpoint.
+  eq = strchr(inp, '=');
+  if (eq == NULL) {
+    iname = NULL;
+    maddr = inp;
+  } else {
+    // Check whether the equals sign is the first character of the string.
+    if (eq == inp) {
+      warnx("Empty interface is invalid");
+      return false;
+    }
+
+    *eq = '\0';
+    iname = inp;
+    maddr = eq + 1;
+  }
+
+  // Parse the endpoint interface.
+  if (!parse_iface(ep, iname, ifs))
+    return false;
+
+  // Parse the endpoint multicast address.
+  if (!parse_maddr(ep, maddr))
+    return false;
+
+  return true;
+}
+
 /// Parse all endpoints from the command-line argument vector.
 /// @return status code
 ///
@@ -155,10 +202,7 @@ parse_endpoints(endpoint** eps,
                 const int ep_cnt)
 {
   int i;
-  int parts;
   bool result;
-  char iname[256];
-  char maddr[256];
   struct ifaddrs* ifaces;
   endpoint* new;
 
@@ -182,18 +226,6 @@ parse_endpoints(endpoint** eps,
   }
 
   for (i = 0; i < ep_cnt; i++) {
-    // Reset all buffers.
-    memset(iname, '\0', 256);
-    memset(maddr, '\0', 256);
-
-    // Parse the endpoint format.
-    parts = sscanf(argv[ep_idx + i], "%255[^=]=%255[^:]", iname, maddr);
-    if (parts != 2) {
-      warnx("Unable to parse the endpoint '%s'", argv[ep_idx + i]);
-      result = false;
-      break;
-    }
-
     // Parse all endpoint parts.
     new = malloc(sizeof(*new));
     if (new == NULL) {
@@ -201,8 +233,12 @@ parse_endpoints(endpoint** eps,
       return false;
     }
 
-    if (!parse_iface(new, iname, ifaces)) { result = false; break; }
-    if (!parse_maddr(new, maddr))         { result = false; break; }
+    // Parse the endpoint.
+    if (!parse_endpoint(new, argv[ep_idx + i], ifaces)) {
+      free(new);
+      result = false;
+      break;
+    }
 
     // Add the new endpoint to the head of the endpoint list.
     new->ep_next = *eps;
