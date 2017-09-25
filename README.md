@@ -16,7 +16,7 @@ found in the manual pages for each program.
 
 ### Publisher
 ```
-dlovasko@freebsd:~$ mpub -c8 -s100 -t32 -i1s em0=239.192.40.1
+dlovasko@freebsd:~$ mpub -c10 -s100 -t32 -i1s em0=239.192.40.1
 ```
 
 ### Subscriber
