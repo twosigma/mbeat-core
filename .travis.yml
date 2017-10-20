@@ -1,0 +1,4 @@
+language: c
+compiler: clang
+sudo: required
+script: make
