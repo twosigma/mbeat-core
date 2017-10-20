@@ -285,7 +285,7 @@ parse_duration(uint64_t* dur, const char* inp)
   memset(unit, '\0', sizeof(unit));
 
   // Separate the scalar and the unit of the duration.
-  n = sscanf(inp, "%llu%2s%n", &num, unit, &adv);
+  n = sscanf(inp, "%" SCNu64 "%2s%n", &num, unit, &adv);
   if (n == 0) {
     warnx("Unable to parse the scalar value of the duration");
     return false;
