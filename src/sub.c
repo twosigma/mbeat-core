@@ -458,7 +458,7 @@ print_payload_csv(const payload* pl,
 /// @param[in] ep    connection endpoint
 /// @param[in] tv    packet arrival time
 /// @param[in] hname hostname
-/// @param[in] opts  command-line options
+/// @param[in] ttl   Time-To-Live value upon arrival
 static void
 print_payload_raw(const payload* pl,
                   const endpoint* ep,
