@@ -1,4 +1,7 @@
 # mbeat
+
+[![Build Status](https://travis-ci.org/twosigma/mbeat.svg?branch=master)](https://travis-ci.org/twosigma/mbeat)
+
 Multicast heartbeat - `mbeat` - is a set of command-line utilities perform
 testing and debugging multicast network configurations by transmitting
 diagnostic payloads and reporting the perceived state. The project
