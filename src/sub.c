@@ -463,7 +463,8 @@ static void
 print_payload_raw(const payload* pl,
                   const endpoint* ep,
                   const struct timespec* tv,
-                  const char* hname)
+                  const char* hname,
+                  const int ttl)
 {
   raw_output ro;
 
@@ -472,6 +473,9 @@ print_payload_raw(const payload* pl,
   memcpy(ro.ro_hname, hname, HNAME_LEN);
   ro.ro_sec  = ((uint64_t)tv->tv_sec);
   ro.ro_nsec = ((uint32_t)tv->tv_nsec);
+  ro.ro_ttla = (0 <= ttl && ttl <= 255) ? 1 : 0;
+  ro.ro_ttl  = (uint8_t)ttl;
+  memset(ro.ro_pad, 0, sizeof(ro.ro_pad));
 
   fwrite(&ro, sizeof(ro), 1, stdout);
 }
@@ -507,7 +511,7 @@ print_payload(payload* pl,
 
   // Perform the user-selected type of output.
   if (opts->so_raw)
-    print_payload_raw(pl, ep, &tv, hname);
+    print_payload_raw(pl, ep, &tv, hname, ttl);
   else
     print_payload_csv(pl, ep, &tv, hname, ttl, opts);
 }

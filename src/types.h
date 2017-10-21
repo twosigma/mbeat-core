@@ -30,13 +30,16 @@ typedef struct _payload {
   char     pl_hname[HNAME_LEN]; ///< Publisher's hostname.
 } payload;
 
-/// Raw binary output format (220 bytes).
+/// Raw binary output format (224 bytes).
 typedef struct _raw_output {
   payload  ro_pl;               ///< Received payload.
   char     ro_iname[INAME_LEN]; ///< Subscriber's interface name.
   char     ro_hname[HNAME_LEN]; ///< Subscriber's hostname.
   uint64_t ro_sec;              ///< Time of arrival - seconds.
   uint32_t ro_nsec;             ///< Time of arrival - nanoseconds.
+  uint8_t  ro_ttla;             ///< Availability of the Time-To-Live value.
+  uint8_t  ro_ttl;              ///< Destination Time-To-Live value.
+  uint8_t  ro_pad[2];           ///< Padding (unused).
 } raw_output;
 
 /// Connection between a local interface and a multicast group.
