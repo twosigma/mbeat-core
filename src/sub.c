@@ -398,14 +398,12 @@ create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
 /// @param[in] tv    packet arrival time
 /// @param[in] hname hostname
 /// @param[in] ttl   Time-To-Live value upon arrival
-/// @param[in] opts  command-line options
 static void
 print_payload_csv(const payload* pl,
                   const endpoint* ep,
                   const struct timespec* tv,
                   const char* hname,
-                  const int ttl,
-                  const sub_options* opts)
+                  const int ttl)
 {
   char ttl_str[8];
   uint32_t dep;
@@ -425,7 +423,7 @@ print_payload_csv(const payload* pl,
          "%" PRIu64 ","                 // SeqNum
          "%" PRIu64 ","                 // SeqLen
          "%s,"                          // McastAddr
-         "%" PRIu64 ","                 // McastPort
+         "%" PRIu16 ","                 // McastPort
          "%" PRIu8  ","                 // SrcTTL
          "%s,"                          // DstTTL
          "%.*s,"                        // PubIf
@@ -438,7 +436,7 @@ print_payload_csv(const payload* pl,
     pl->pl_snum,
     pl->pl_slen,
     inet_ntoa(ep->ep_maddr),
-    opts->so_port,
+    pl->pl_mport,
     pl->pl_ttl,
     ttl_str,
     (int)sizeof(pl->pl_iname), pl->pl_iname,
@@ -513,7 +511,7 @@ print_payload(payload* pl,
   if (opts->so_raw)
     print_payload_raw(pl, ep, &tv, hname, ttl);
   else
-    print_payload_csv(pl, ep, &tv, hname, ttl, opts);
+    print_payload_csv(pl, ep, &tv, hname, ttl);
 }
 
 /// Convert all integers from the network to host byte order.
