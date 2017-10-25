@@ -13,6 +13,8 @@
 
 #include "types.h"
 
+/// Global logging message level threshold.
+extern uint8_t glvl;
 
 // Semantic versioning scheme.
 #define MBEAT_VERSION_MAJOR 1
@@ -26,6 +28,13 @@
 #define MBEAT_PAYLOAD_MAGIC   0x6d626974
 #define MBEAT_PAYLOAD_VERSION          2
 
+// Notification levels.
+#define NL_ERROR 0 // Error.
+#define NL_WARN  1 // Warning.
+#define NL_INFO  2 // Information.
+#define NL_DEBUG 3 // Debug.
+#define NL_TRACE 4 // Tracing.
+
 // Maximal number of allowed endpoints. It is not clear yet what this number
 // should be, but given the availability of specifying IP-address ranges, this
 // number must cover a small number of /8 subnets. The current constant is
@@ -33,9 +42,10 @@
 #define ENDPOINT_MAX 83886080
 
 void free_endpoints(endpoint* eps);
-bool cache_hostname(char* hname, const size_t hname_len);
+bool cache_hostname(char* hname);
 void convert_nanos(struct timespec* tv, const uint64_t ms);
 uint64_t htonll(const uint64_t x);
 uint64_t ntohll(const uint64_t x);
+void notify(const uint8_t lvl, const bool perr, const char* msg, ...);
 
 #endif

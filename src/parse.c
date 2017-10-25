@@ -40,13 +40,14 @@ parse_uint64(uint64_t* out,
   errno = 0;
   x = strtoumax(str, NULL, 10);
   if (x == 0 && errno != 0) {
-    warn("Unable to parse a number from string '%s'", str);
+    notify(NL_ERROR, true, "Unable to parse a number from string '%s'", str);
     return false;
   }
 
   // Verify that the number belongs to the specified range.
   if (x < (uintmax_t)min || x > (uintmax_t)max) {
-    warnx("Number %ju out of range (%" PRIu64 "..%" PRIu64 ")", x, min, max);
+    notify(NL_ERROR, false, "Number %ju out of range "
+           "(%" PRIu64 "..%" PRIu64 ")", x, min, max);
     return false;
   }
 
@@ -86,23 +87,24 @@ parse_iface(endpoint* ep, const char* inp, const struct ifaddrs* ifaces)
   // If no suitable interface was found.
   if (iface == NULL) {
     if (inp == NULL)
-      warnx("Unable to find any suitable interface");
+      notify(NL_ERROR, false, "Unable to find any suitable interface");
     else
-      warnx("Unable to find interface '%s' with an IPv4 address", inp);
+      notify(NL_ERROR, false, "Unable to find interface %s with an "
+             "IPv4 address", inp);
 
     return false;
   }
 
   // Make sure that the interface is up.
   if (!(iface->ifa_flags & IFF_UP)) {
-    warnx("Interface '%s' is not up", iface->ifa_name);
+    notify(NL_ERROR, false, "Interface %s is not up", iface->ifa_name);
     return false;
   }
 
   // Make sure that the interface supports multicast traffic.
   if (!(iface->ifa_flags & IFF_MULTICAST)) {
-    warnx("Interface '%s' is not available for multicast traffic",
-          iface->ifa_name);
+    notify(NL_ERROR, false, "Interface %s is not available for "
+           "multicast traffic", iface->ifa_name);
     return false;
   }
 
@@ -127,13 +129,14 @@ parse_maddr(endpoint* ep, const char* inp)
 {
   // Convert and validate the multicast address.
   if (inet_aton(inp, &ep->ep_maddr) == 0) {
-    warnx("Unable to parse the multicast address '%s'", inp);
+    notify(NL_ERROR, false, "Unable to parse the multicast address %s", inp);
     return false;
   }
 
   // Ensure that the address belongs to the multicast range.
   if (!IN_MULTICAST(ntohl(ep->ep_maddr.s_addr))) {
-    warnx("Address '%s' does not belong to the multicast range", inp);
+    notify(NL_ERROR, false, "Address %s does not belong to the "
+           "multicast range", inp);
     return false;
   }
 
@@ -155,7 +158,7 @@ parse_endpoint(endpoint* ep, char* inp, const struct ifaddrs* ifs)
 
   // Validate the input string.
   if (inp == NULL || inp[0] == '\0') {
-    warnx("Empty endpoint definition");
+    notify(NL_ERROR, false, "Empty endpoint definition");
     return false;
   }
 
@@ -168,7 +171,7 @@ parse_endpoint(endpoint* ep, char* inp, const struct ifaddrs* ifs)
   } else {
     // Check whether the equals sign is the first character of the string.
     if (eq == inp) {
-      warnx("Empty interface is invalid");
+      notify(NL_ERROR, false, "Empty interface is invalid");
       return false;
     }
 
@@ -207,12 +210,12 @@ parse_endpoints(endpoint** eps,
   endpoint* new;
 
   if (ep_cnt < 1) {
-    warnx("Expected at least one endpoint");
+    notify(NL_ERROR, false, "Expected at least one endpoint");
     return false;
   }
 
   if (ep_cnt > ENDPOINT_MAX) {
-    warnx("Too many endpoints, maximum is %d", ENDPOINT_MAX);
+    notify(NL_ERROR, false, "Too many endpoints, maximum is %d", ENDPOINT_MAX);
     return false;
   }
 
@@ -221,7 +224,8 @@ parse_endpoints(endpoint** eps,
   // Populate the list of all network interfaces.
   errno = 0;
   if (getifaddrs(&ifaces) == -1) {
-    warn("Unable to populate the list of network interfaces");
+    notify(NL_ERROR, true, "Unable to populate the list of "
+           "network interfaces");
     return false;
   }
 
@@ -229,7 +233,7 @@ parse_endpoints(endpoint** eps,
     // Parse all endpoint parts.
     new = malloc(sizeof(*new));
     if (new == NULL) {
-      warn("Unable to allocate memory for endpoint");
+      notify(NL_ERROR, true, "Unable to allocate memory for an endpoint");
       return false;
     }
 
@@ -287,18 +291,19 @@ parse_duration(uint64_t* dur, const char* inp)
   // Separate the scalar and the unit of the duration.
   n = sscanf(inp, "%" SCNu64 "%2s%n", &num, unit, &adv);
   if (n == 0) {
-    warnx("Unable to parse the scalar value of the duration");
+    notify(NL_ERROR, false, "Unable to parse the scalar value of "
+           "the duration");
     return false;
   }
 
   if (n == 1) {
-    warnx("Unable to parse the unit of the duration");
+    notify(NL_ERROR, false, "No unit specified");
     return false;
   }
 
   // Verify that the full input string was parsed.
   if (adv != (int)strlen(inp)) {
-    warnx("The duration string contains too many characters");
+    notify(NL_ERROR, false, "The duration string contains excess characters");
     return false;
   }
 
@@ -306,14 +311,15 @@ parse_duration(uint64_t* dur, const char* inp)
   mult = 0;
   parse_unit(&mult, unit);
   if (mult == 0) {
-    warnx("Unknown unit of the duration");
+    notify(NL_ERROR, false, "Unknown unit %2s of the duration", unit);
     return false;
   }
 
   // Check for overflow of the value in nanoseconds.
   x = num * mult;
   if (x / mult != num) {
-    warnx("Duration is too long");
+    notify(NL_ERROR, false, "Duration would overflow, maximum is %" PRIu64 
+           " nanoseconds", UINT64_MAX);
     return false;
   }
 

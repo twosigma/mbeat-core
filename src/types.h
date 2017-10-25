@@ -61,6 +61,7 @@ typedef struct _pub_options {
   uint64_t po_port; ///< UDP port for all endpoints.
   uint8_t  po_err;  ///< Process exit on publishing error.
   uint8_t  po_lop;  ///< Datagram looping on localhost.
+  uint8_t  po_lvl;  ///< Logging verbosity level.
 } pub_options;
 
 /// Command-line options of the subscriber utility.
@@ -73,6 +74,7 @@ typedef struct _sub_options {
   uint8_t  so_err;  ///< Process exit on receiving error.
   uint8_t  so_raw;  ///< Output received datagrams in raw binary format.
   uint8_t  so_unb;  ///< Turn off buffering on the output stream.
+  uint8_t  so_lvl;  ///< Logging verbosity level.
 } sub_options;
 
 #endif

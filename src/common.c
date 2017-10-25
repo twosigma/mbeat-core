@@ -16,12 +16,16 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include <string.h>
 #include <errno.h>
 #include <err.h>
 
 #include "common.h"
 
+
+/// Global notification level threshold.
+uint8_t glvl;
 
 /// Free memory used for endpoint storage.
 ///
@@ -46,23 +50,17 @@ free_endpoints(endpoint* eps)
 /// Obtain the hostname.
 /// @return status code
 ///
-/// @param[out] hname     hostname
-/// @param[in]  hname_len maximal hostname length
+/// @param[out] hname hostname
 bool
-cache_hostname(char* hname, const size_t hname_len)
+cache_hostname(char* hname)
 {
-  if (hname_len == 0) {
-    warnx("Hostname length cannot be zero");
-    return false;
-  }
+  memset(hname, '\0', HNAME_LEN);
 
-  memset(hname, '\0', hname_len);
-
-  if (gethostname(hname, hname_len-1) == -1) {
-    if (errno == ENAMETOOLONG)
-      warnx("Hostname was truncated to %zu characters", hname_len-1);
-    else {
-      warn("Unable to get the local hostname");
+  if (gethostname(hname, HNAME_LEN) == -1) {
+    if (errno == ENAMETOOLONG) {
+      notify(NL_WARN, false, "Truncated hostname to %d letters", HNAME_LEN);
+    } else {
+      notify(NL_ERROR, true, "Unable to get the local hostname");
       return false;
     }
   }
@@ -111,4 +109,48 @@ ntohll(const uint64_t x)
   lo = x & 0xffffffff;
 
   return (uint64_t)ntohl(lo) | ((uint64_t)ntohl(hi) << 32);
+}
+
+/// Issue a notification to the standard error stream.
+///
+/// @param[in] lvl  notification level (one of NL_*)
+/// @param[in] perr append the errno string to end of the notification 
+/// @param[in] msg  message to print
+/// @param[in] ...  arguments for the message
+void
+notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
+{
+  char tstr[32];
+  char msg[128];
+  char errmsg[128];
+  struct tm* tfmt;
+  time_t traw;
+  va_list args;
+  int save;
+  static const char* lname[] = {"ERROR", " WARN", " INFO", "DEBUG", "TRACE"};
+
+  // Ignore messages that fall below the global threshold.
+  if (lvl > glvl)
+    return;
+
+  // Save the errno with which the function was called.
+  save = errno;
+
+  // Obtain and format the current time in GMT.
+  traw = time(NULL);
+  tfmt = gmtime(&traw);
+  strftime(tstr, sizeof(tstr), "%F %T", tfmt);
+
+  // Fill in the passed message.
+  va_start(args, fmt);
+  vsprintf(msg, fmt, args);
+  va_end(args);
+
+  // Obtain the errno message.
+  memset(errmsg, '\0', sizeof(errmsg));
+  if (perr)
+    sprintf(errmsg, ": %s", strerror(save));
+
+  // Print the final log line.
+  (void)fprintf(stderr, "[%s] %s - %s%s\n", tstr, lname[lvl], msg, errmsg);
 }

@@ -51,6 +51,7 @@
 #define DEF_ERROR       0 // Do not stop the process on receiving error.
 #define DEF_RAW_OUTPUT  0 // Raw binary output is disabled by default.
 #define DEF_UNBUFFERED  0 // Unbuffered output is disabled by default.
+#define DEF_NOTIFY_LEVEL 1 // Log errors and warnings by default.
 
 /// Print the utility usage information to the standard output.
 static void
@@ -102,8 +103,9 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
   opts->so_err  = DEF_ERROR;
   opts->so_raw  = DEF_RAW_OUTPUT;
   opts->so_unb  = DEF_UNBUFFERED;
+  opts->so_lvl  = DEF_NOTIFY_LEVEL;
 
-  while ((opt = getopt(argc, argv, "b:e:ho:p:rs:t:u")) != -1) {
+  while ((opt = getopt(argc, argv, "b:e:ho:p:rs:t:uv")) != -1) {
     switch (opt) {
 
       // Receive buffer size. The lowest accepted value is 128, enforcing the
@@ -157,9 +159,15 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
         opts->so_unb = 1;
         break;
 
+      // Logging verbosity level.
+      case 'v':
+        if (opts->so_lvl < NL_TRACE)
+          opts->so_lvl++;
+        break;
+
       // Unknown option.
       case '?':
-        warnx("Invalid option '%c'", optopt);
+        fprintf(stderr, "Invalid option '%c'", optopt);
         print_usage();
         return false;
 
@@ -169,6 +177,9 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
         return false;
     }
   }
+
+  // Set the requested global logging level threshold.
+  glvl = opts->so_lvl;
 
   *ep_cnt = argc - optind;
   *ep_idx = optind;
@@ -195,30 +206,29 @@ create_sockets(endpoint* eps, const sub_options* opts)
   for (ep = eps; ep != NULL ; ep = ep->ep_next) {
     ep->ep_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (ep->ep_sock == -1) {
-      warn("Unable to create socket");
+      notify(NL_ERROR, true, "Unable to create socket");
       return false;
     }
 
     // Enable multiple sockets being bound to the same address/port.
     if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_REUSEADDR,
                    &enable, sizeof(enable)) == -1) {
-      warn("Unable to make the socket address reusable");
+      notify(NL_ERROR, true, "Unable to set the socket address reusable");
       return false;
     }
 
     // Request the Time-To-Live property of each incoming datagram.
     if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_RECVTTL,
-                   &enable, sizeof(enable)) == -1) {
-      warn("Unable to request Time-To-Live information");
-      return false;
-    }
+                   &enable, sizeof(enable)) == -1)
+      notify(NL_WARN, true, "Unable to request Time-To-Live information");
 
     // Set the socket receive buffer size to the requested value.
     if (opts->so_buf != 0) {
       buf_size = (int)opts->so_buf;
       if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_RCVBUF,
                      &buf_size, sizeof(buf_size)) == -1) {
-        warn("Unable to set the socket receive buffer size to %d", buf_size);
+        notify(NL_ERROR, true,
+               "Unable to set the socket receive buffer size to %d", buf_size);
         return false;
       }
     }
@@ -230,7 +240,8 @@ create_sockets(endpoint* eps, const sub_options* opts)
 
     // Bind the socket to the multicast group.
     if (bind(ep->ep_sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-      warn("Unable to bind to address %s", mcast_str);
+      notify(NL_ERROR, true, "Unable to bind to address %s and port %" PRIu64,
+             mcast_str, opts->so_port);
       return false;
     }
 
@@ -239,7 +250,7 @@ create_sockets(endpoint* eps, const sub_options* opts)
     req.imr_multiaddr.s_addr = ep->ep_maddr.s_addr;
     if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
                    &req, sizeof(req)) == -1) {
-      warn("Unable to join multicast group %s", mcast_str);
+      notify(NL_ERROR, true, "Unable to join multicast group %s", mcast_str);
       return false;
     }
   }
@@ -263,7 +274,7 @@ create_event_queue(int* eqfd)
   #endif
 
   if (*eqfd < 0) {
-    warn("Unable to create event queue");
+    notify(NL_ERROR, true, "Unable to create event queue");
     return false;
   }
 
@@ -297,7 +308,7 @@ create_socket_events(const int eqfd, endpoint* eps)
       ev.data.ptr = ep;
 
       if (epoll_ctl(eqfd, EPOLL_CTL_ADD, ep->ep_sock, &ev) == -1) {
-        warn("Unable to add a socket to the event queue");
+        notify(NL_ERROR, true, "Unable to add a socket to the event queue");
         return false;
       }
     #endif
@@ -305,7 +316,7 @@ create_socket_events(const int eqfd, endpoint* eps)
     #if defined(__FreeBSD__)
       EV_SET(&ev, ep->ep_sock, EVFILT_READ, EV_ADD, 0, 0, ep);
       if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
-        warn("Unable to add a socket to the event queue");
+        notify(NL_ERROR, true, "Unable to add a socket to the event queue");
         return false;
       }
     #endif
@@ -347,7 +358,7 @@ create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
     // Create a new signal file descriptor.
     *sigfd = signalfd(-1, &mask, 0);
     if (*sigfd == -1) {
-      warn("Unable to create signal file descriptor");
+      notify(NL_ERROR, true, "Unable to create signal file descriptor");
       return false;
     }
 
@@ -355,7 +366,8 @@ create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
     ev.events = EPOLLIN;
     ev.data.fd = *sigfd;
     if (epoll_ctl(eqfd, EPOLL_CTL_ADD, *sigfd, &ev) == -1) {
-      warn("Unable to add the signal file descriptor to the event queue");
+      notify(NL_ERROR, false,
+             "Unable to add the signal file descriptor to the event queue");
       return false;
     }
   #endif
@@ -367,14 +379,14 @@ create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
     // Add SIGINT to the event queue.
     EV_SET(&ev, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
     if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
-      warn("Unable to add SIGINT to the event queue");
+      notify(NL_ERROR, true, "Unable to add SIGINT to the event queue");
       return false;
     }
 
     // Add SIGHUP to the event queue.
     EV_SET(&ev, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
     if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
-      warn("Unable to add SIGINT to the event queue");
+      notify(NL_ERROR, true, "Unable to add SIGHUP to the event queue");
       return false;
     }
 
@@ -382,7 +394,7 @@ create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
     if (opts->so_tout > 0) {
       EV_SET(&ev, SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
       if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
-        warn("Unable to add SIGALRM to the event queue");
+        notify(NL_ERROR, true, "Unable to add SIGALRM to the event queue");
         return false;
       }
     }
@@ -549,12 +561,16 @@ retrieve_ttl(int* ttl, struct msghdr* msg)
     type = IP_RECVTTL;
   #endif
 
+  notify(NL_TRACE, false, "Retrieving the Time-To-Live data");
+
   for (cmsg = CMSG_FIRSTHDR(msg); cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
     if (cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == type) {
       *ttl = *(int*)CMSG_DATA(cmsg);
       return true;
     }
   }
+
+  notify(NL_WARN, false, "Unable to retrieve the Time-To-Live data");
 
   *ttl = -1;
   return false;
@@ -603,15 +619,18 @@ handle_event(endpoint* ep, const char* hname, const sub_options* opts)
         break;
 
       // Otherwise register the error with the user.
-      warn("Unable to receive datagram");
+      notify(opts->so_err ? NL_ERROR : NL_WARN, true,
+             "Unable to receive datagram on interface %s "
+             "from multicast group %s", ep->ep_iname, inet_ntoa(ep->ep_maddr));
 
-      if (opts->so_err == 1)
+      if (opts->so_err)
         return false;
     }
 
     // Verify the size of the received payload.
     if ((size_t)nbytes != sizeof(pl)) {
-      warnx("Wrong payload size, expected: %zu, got: %zd", sizeof(pl), nbytes);
+      notify(NL_WARN, false, "Wrong payload size, expected: %zu, got: %zd",
+             sizeof(pl), nbytes);
       continue;
     }
 
@@ -621,15 +640,17 @@ handle_event(endpoint* ep, const char* hname, const sub_options* opts)
 
     // Verify the magic number of the payload.
     if (pl.pl_magic != MBEAT_PAYLOAD_MAGIC) {
-      warnx("Payload magic number invalid, expected: %u, got: %u",
-            MBEAT_PAYLOAD_MAGIC, pl.pl_magic);
+      notify(NL_WARN, false,
+             "Payload magic number invalid, expected: %u, got: %u",
+             MBEAT_PAYLOAD_MAGIC, pl.pl_magic);
       continue;
     }
 
     // Ensure that the format version is supported.
     if (pl.pl_fver != MBEAT_PAYLOAD_VERSION) {
-      warnx("Unsupported payload version, expected: %u, got: %u",
-            MBEAT_PAYLOAD_VERSION, pl.pl_fver);
+      notify(NL_WARN, false, 
+             "Unsupported payload version, expected: %u, got: %u",
+             MBEAT_PAYLOAD_VERSION, pl.pl_fver);
       continue;
     }
 
@@ -670,6 +691,8 @@ receive_datagrams(const int eqfd,
 
   // Receive datagrams on all initialized connections.
   while (1) {
+    notify(NL_TRACE, false, "Waiting for incoming events");
+
     #if defined(__linux__)
       ev_cnt = epoll_wait(eqfd, evs, 64, -1);
     #endif
@@ -679,9 +702,11 @@ receive_datagrams(const int eqfd,
     #endif
 
     if (ev_cnt < 0) {
-      warn("Event queue reading failed");
+      notify(NL_ERROR, true, "Event queue reading failed");
       return false;
     }
+
+    notify(NL_DEBUG, false, "%d events", ev_cnt);
 
     // Handle each event.
     for (i = 0; i < ev_cnt; i++) {
@@ -733,12 +758,12 @@ install_alarm(const sub_options* opts)
 
   // Create and arm the timer based on the selected timeout.
   if (timer_create(CLOCK_REALTIME, NULL, &tm) == -1) {
-    warn("Unable to create timer");
+    notify(NL_ERROR, true, "Unable to create timer");
     return false;
   }
 
   if (timer_settime(tm, 0, &spec, NULL) == -1) {
-    warn("Unable to set the timer");
+    notify(NL_ERROR, true, "Unable to set the timer");
     return false;
   }
 
@@ -746,21 +771,17 @@ install_alarm(const sub_options* opts)
 }
 
 /// Disable the standard output stream buffering based on user settings.
-/// @return status code
 ///
 /// @param[in] opts command-line options
-static bool
+static void 
 disable_buffering(const sub_options* opts)
 {
   if (opts->so_unb == 0)
-    return true;
+    return;
 
-  if (setvbuf(stdout, NULL, _IONBF, 0) != 0) {
-    warn("Unable to disable stdio buffering");
-    return false;
-  }
-
-  return true;
+  notify(NL_DEBUG, false, "Disabling stdio buffering");
+  if (setvbuf(stdout, NULL, _IONBF, 0) != 0)
+    notify(NL_WARN, true, "Unable to disable stdio buffering");
 }
 
 /// Multicast heartbeat subscriber.
@@ -787,17 +808,16 @@ main(int argc, char* argv[])
   ep_cnt = 0;
   ep_idx = 0;
 
-  // Obtain the hostname.
-  if (!cache_hostname(hname, sizeof(hname)))
-    return EXIT_FAILURE;
-
   // Process the command-line arguments.
   if (!parse_args(&ep_cnt, &ep_idx, &opts, argc, argv))
     return EXIT_FAILURE;
 
-  // Disable buffering on the standard output.
-  if (!disable_buffering(&opts))
+  // Obtain the hostname.
+  if (!cache_hostname(hname))
     return EXIT_FAILURE;
+
+  // Disable buffering on the standard output.
+  disable_buffering(&opts);
 
   // Parse and validate endpoints.
   if (!parse_endpoints(&eps, ep_idx, argv, ep_cnt))

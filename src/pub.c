@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
@@ -36,6 +37,7 @@
 #define DEF_TIME_TO_LIVE          1 // Time-To-Live for published datagrams.
 #define DEF_ERROR                 0 // Process exit on publishing error.
 #define DEF_LOOP                  0 // Looping policy on localhost.
+#define DEF_NOTIFY_LEVEL          1 // Log errors and warnings by default.
 
 /// Print the utility usage information to the standard output.
 static void
@@ -112,9 +114,10 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
   opts->po_err  = DEF_ERROR;
   opts->po_lop  = DEF_LOOP;
   opts->po_port = MBEAT_PORT;
+  opts->po_lvl  = DEF_NOTIFY_LEVEL;
   opts->po_sid  = generate_sid();
 
-  while ((opt = getopt(argc, argv, "b:c:ehi:lp:s:t:")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:ehi:lp:s:t:v")) != -1) {
     switch (opt) {
 
       // Send buffer size. The lowest accepted value is 1024, enforcing the
@@ -169,9 +172,15 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
           return false;
         break;
 
+      // Logging verbosity level.
+      case 'v':
+        if (opts->po_lvl < NL_TRACE)
+          opts->po_lvl++;
+        break;
+
       // Unknown option.
       case '?':
-        warnx("Invalid option '%c'", optopt);
+        fprintf(stderr, "Invalid option '%c'.\n", optopt);
         print_usage();
         return false;
 
@@ -181,6 +190,9 @@ parse_args(int* ep_cnt, int* ep_idx, pub_options* opts, int argc, char* argv[])
         return false;
     }
   }
+
+  // Set the requested global logging level threshold.
+  glvl = opts->po_lvl;
 
   *ep_cnt = argc - optind;
   *ep_idx = optind;
@@ -203,17 +215,21 @@ create_sockets(endpoint* eps, const pub_options* opts)
 
   enable = 1;
   for (ep = eps; ep != NULL; ep = ep->ep_next) {
+    notify(NL_INFO, false,
+           "Creating endpoint on interface %s for multicast group %s",
+           ep->ep_iname, inet_ntoa(ep->ep_maddr));
+
     // Create a UDP socket.
     ep->ep_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (ep->ep_sock == -1) {
-      warn("Unable to create socket");
+      notify(NL_ERROR, true, "Unable to create socket");
       return false;
     }
 
     // Enable multiple sockets being bound to the same address/port.
     if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_REUSEADDR,
                    &enable, sizeof(enable)) == -1) {
-      warn("Unable to make the socket address reusable");
+      notify(NL_ERROR, true, "Unable to set the socket address reusable");
       return false;
     }
 
@@ -222,7 +238,8 @@ create_sockets(endpoint* eps, const pub_options* opts)
       buf_size = (int)opts->po_buf;
       if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_SNDBUF,
                      &buf_size, sizeof(buf_size)) == -1) {
-        warn("Unable to set the socket send buffer size to %d", buf_size);
+        notify(NL_ERROR, true,
+               "Unable to set the socket send buffer size to %d", buf_size);
         return false;
       }
     }
@@ -230,14 +247,17 @@ create_sockets(endpoint* eps, const pub_options* opts)
     // Limit the socket to the selected interface.
     if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_MULTICAST_IF,
                    &(ep->ep_iaddr), sizeof(ep->ep_iaddr)) == -1) {
-      warn("Unable to select socket interface '%s'", ep->ep_iname);
+      notify(NL_ERROR, true, "Unable to set the socket interface to %s",
+             ep->ep_iname);
       return false;
     }
 
     // Set the datagram looping policy.
     if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_MULTICAST_LOOP,
                    &opts->po_lop, sizeof(opts->po_lop)) == -1) {
-      warn("Unable to set the localhost looping policy");
+      notify(NL_ERROR, true,
+             "Unable to turn %s the localhost datagram delivery",
+             opts->po_lop ? "on" : "off");
       return false;
     }
 
@@ -245,7 +265,8 @@ create_sockets(endpoint* eps, const pub_options* opts)
     ttl_set = (uint8_t)opts->po_ttl;
     if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_MULTICAST_TTL,
                    &ttl_set, sizeof(ttl_set)) == -1) {
-      warn("Unable to set the Time-To-Live of datagrams");
+      notify(NL_ERROR, true,
+             "Unable to set Time-To-Live of datagrams to %" PRIu8, ttl_set);
       return false;
     }
   }
@@ -305,6 +326,14 @@ publish_datagrams(endpoint* eps, const char* hname, const pub_options* opts)
   struct iovec data;
   endpoint* e;
 
+  notify(NL_DEBUG, false, "Hostname is %s", hname);
+  notify(NL_DEBUG, false, "UDP port is %" PRIu64, opts->po_port);
+  notify(NL_DEBUG, false, "Session ID is %" PRIu64, opts->po_sid);
+  notify(NL_DEBUG, false, "Time-To-Live is %" PRIu64, opts->po_ttl);
+
+  notify(NL_INFO, false, "Starting to publish %" PRIu64 " datagram%s",
+         opts->po_cnt, (opts->po_cnt > 1 ? "s" : ""));
+
   convert_nanos(&ts, opts->po_int);
 
   // Prepare the address structure.
@@ -313,6 +342,9 @@ publish_datagrams(endpoint* eps, const char* hname, const pub_options* opts)
 
   // Publish the requested number of datagrams.
   for (c = 0; c < opts->po_cnt; c++) {
+    notify(NL_DEBUG, false, "Round %" PRIu64 "/%" PRIu64 " of datagrams",
+           c + 1, opts->po_cnt);
+
     for (e = eps; e != NULL; e = e->ep_next) {
       fill_payload(&pl, e, c, hname, opts);
 
@@ -332,20 +364,30 @@ publish_datagrams(endpoint* eps, const char* hname, const pub_options* opts)
       msg.msg_controllen = 0;
 
       // Publish the payload.
+      notify(NL_TRACE, false,
+             "Publishing datagram from interface %s to multicast group %s",
+             e->ep_iname, inet_ntoa(e->ep_maddr));
+
       ret = sendmsg(e->ep_sock, &msg, MSG_DONTWAIT);
       if (ret == 0) {
-        warn("Unable to send datagram");
+        notify(opts->po_err ? NL_ERROR : NL_WARN, true,
+               "Unable to publish datagram from interface %s to "
+               "multicast group %s", e->ep_iname, inet_ntoa(e->ep_maddr));
 
-        if (opts->po_err == 1)
+        if (opts->po_err)
           return false;
       }
     }
 
     // Do not sleep after the last round of datagrams.
-    if (opts->po_int > 0 && c != (opts->po_cnt - 1))
+    if (opts->po_int > 0 && c != (opts->po_cnt - 1)) {
       nanosleep(&ts, NULL);
+      notify(NL_TRACE, false, "Sleeping for %" PRIu64 " nanoseconds",
+             opts->po_int);
+    }
   }
 
+  notify(NL_INFO, false, "Finished publishing of all datagrams");
   return true;
 }
 
@@ -369,12 +411,12 @@ main(int argc, char* argv[])
   ep_cnt = 0;
   ep_idx = 0;
 
-  // Obtain the hostname.
-  if (!cache_hostname(hname, sizeof(hname)))
-    return EXIT_FAILURE;
-
   // Process the command-line arguments.
   if (!parse_args(&ep_cnt, &ep_idx, &opts, argc, argv))
+    return EXIT_FAILURE;
+
+  // Obtain the hostname.
+  if (!cache_hostname(hname))
     return EXIT_FAILURE;
 
   // Parse and validate endpoints.
