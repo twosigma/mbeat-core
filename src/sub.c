@@ -118,10 +118,9 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   while ((opt = getopt(argc, argv, "b:e:ho:p:rs:uv")) != -1) {
     switch (opt) {
 
-      // Receive buffer size. The lowest accepted value is 128, enforcing the
-      // same limit as the Linux kernel.
+      // Receive buffer size.
       case 'b':
-        if (parse_uint64(&opbuf, optarg, 128, UINT64_MAX) == 0)
+        if (parse_uint64(&opbuf, optarg, 0, UINT64_MAX) == 0)
           return false;
         break;
 
