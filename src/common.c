@@ -22,10 +22,14 @@
 #include <err.h>
 
 #include "common.h"
+#include "types.h"
 
 
 /// Global notification level threshold.
 uint8_t glvl;
+
+/// Hostname.
+char hname[HNAME_LEN];
 
 /// Free memory used for endpoint storage.
 ///
@@ -49,10 +53,8 @@ free_endpoints(endpoint* eps)
 
 /// Obtain the hostname.
 /// @return status code
-///
-/// @param[out] hname hostname
 bool
-cache_hostname(char* hname)
+cache_hostname(void)
 {
   memset(hname, '\0', HNAME_LEN);
 

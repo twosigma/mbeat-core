@@ -386,13 +386,11 @@ create_signal_event(int* sigfd, const int eqfd)
 /// @param[in] pl    payload
 /// @param[in] ep    connection endpoint
 /// @param[in] tv    packet arrival time
-/// @param[in] hname hostname
 /// @param[in] ttl   Time-To-Live value upon arrival
 static void
 print_payload_csv(const payload* pl,
                   const endpoint* ep,
                   const struct timespec* tv,
-                  const char* hname,
                   const int ttl)
 {
   char ttl_str[8];
@@ -432,7 +430,7 @@ print_payload_csv(const payload* pl,
     (int)sizeof(pl->pl_iname), pl->pl_iname,
     (int)sizeof(pl->pl_hname), pl->pl_hname,
     (int)sizeof(ep->ep_iname), ep->ep_iname,
-    HNAME_LEN, hname,
+    (int)sizeof(hname), hname,
     pl->pl_sec,
     dep,
     (uint64_t)tv->tv_sec,
@@ -445,20 +443,18 @@ print_payload_csv(const payload* pl,
 /// @param[in] pl    payload
 /// @param[in] ep    connection endpoint
 /// @param[in] tv    packet arrival time
-/// @param[in] hname hostname
 /// @param[in] ttl   Time-To-Live value upon arrival
 static void
 print_payload_raw(const payload* pl,
                   const endpoint* ep,
                   const struct timespec* tv,
-                  const char* hname,
                   const int ttl)
 {
   raw_output ro;
 
   memcpy(&ro.ro_pl, pl, sizeof(*pl));
   memcpy(ro.ro_iname, ep->ep_iname, sizeof(ep->ep_iname));
-  memcpy(ro.ro_hname, hname, HNAME_LEN);
+  memcpy(ro.ro_hname, hname, sizeof(hname));
   ro.ro_sec  = ((uint64_t)tv->tv_sec);
   ro.ro_nsec = ((uint32_t)tv->tv_nsec);
   ro.ro_ttla = (0 <= ttl && ttl <= 255) ? 1 : 0;
@@ -473,12 +469,10 @@ print_payload_raw(const payload* pl,
 ///
 /// @param[in] pl    payload
 /// @param[in] ep    endpoint
-/// @param[in] hname hostname
 /// @param[in] opts  command-line options
 static void
 print_payload(payload* pl,
               const endpoint* ep,
-              const char* hname,
               const int ttl,
               const sub_options* opts)
 {
@@ -499,9 +493,9 @@ print_payload(payload* pl,
 
   // Perform the user-selected type of output.
   if (opts->so_raw)
-    print_payload_raw(pl, ep, &tv, hname, ttl);
+    print_payload_raw(pl, ep, &tv, ttl);
   else
-    print_payload_csv(pl, ep, &tv, hname, ttl);
+    print_payload_csv(pl, ep, &tv, ttl);
 }
 
 /// Convert all integers from the network to host byte order.
@@ -558,10 +552,9 @@ retrieve_ttl(int* ttl, struct msghdr* msg)
 /// @return status code
 ///
 /// @param[in]  ep    endpoint
-/// @param[in]  hname hostname
 /// @param[in]  opts  command-line options
 static bool
-handle_event(endpoint* ep, const char* hname, const sub_options* opts)
+handle_event(endpoint* ep, const sub_options* opts)
 {
   payload pl;
   int ttl;
@@ -632,7 +625,7 @@ handle_event(endpoint* ep, const char* hname, const sub_options* opts)
       continue;
     }
 
-    print_payload(&pl, ep, hname, ttl, opts);
+    print_payload(&pl, ep, ttl, opts);
   }
 
   return true;
@@ -643,13 +636,9 @@ handle_event(endpoint* ep, const char* hname, const sub_options* opts)
 ///
 /// @param[in] eqfd  epoll(2) file descriptor
 /// @param[in] sigfd signal file descriptor
-/// @param[in] hname hostname
 /// @param[in] opts  command-line options
 static bool
-receive_datagrams(const int eqfd,
-                  const int sigfd,
-                  const char* hname,
-                  const sub_options* opts)
+receive_datagrams(const int eqfd, const int sigfd, const sub_options* opts)
 {
   int ev_cnt;
   int i;
@@ -695,7 +684,7 @@ receive_datagrams(const int eqfd,
           return true;
 
         // Handle socket events.
-        if (!handle_event(evs[i].data.ptr, hname, opts))
+        if (!handle_event(evs[i].data.ptr, opts))
           return false;
       #endif
 
@@ -708,7 +697,7 @@ receive_datagrams(const int eqfd,
           return true;
 
         // Handle socket events.
-        if (!handle_event(evs[i].udata, hname, opts))
+        if (!handle_event(evs[i].udata, opts))
           return false;
       #endif
     }
@@ -748,8 +737,6 @@ main(int argc, char* argv[])
   int eqfd;
   int sigfd;
 
-  // Cached hostname.
-  char hname[HNAME_LEN+1];
 
   eps = NULL;
   ep_cnt = 0;
@@ -760,7 +747,7 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Obtain the hostname.
-  if (!cache_hostname(hname))
+  if (!cache_hostname())
     return EXIT_FAILURE;
 
   // Disable buffering on the standard output.
@@ -787,7 +774,7 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Start receiving datagrams.
-  if (!receive_datagrams(eqfd, sigfd, hname, &opts))
+  if (!receive_datagrams(eqfd, sigfd, &opts))
     return EXIT_FAILURE;
 
   fflush(stdout);

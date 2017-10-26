@@ -279,13 +279,11 @@ create_sockets(endpoint* eps, const pub_options* opts)
 /// @param[out] pl    payload
 /// @param[in]  ep    endpoint
 /// @param[in]  sid   session ID
-/// @param[in]  hname hostname
 /// @param[in]  opts  command-line options
 static void
 fill_payload(payload* pl,
              const endpoint* ep,
              const uint32_t snum,
-             const char* hname,
              const pub_options* opts)
 {
   struct timespec tv;
@@ -312,10 +310,9 @@ fill_payload(payload* pl,
 /// @return status code
 ///
 /// @param[in] eps   endpoint array
-/// @param[in] hname local hostname
 /// @param[in] opts  command-line options
 static bool
-publish_datagrams(endpoint* eps, const char* hname, const pub_options* opts)
+publish_datagrams(endpoint* eps, const pub_options* opts)
 {
   uint64_t c;
   ssize_t ret;
@@ -346,7 +343,7 @@ publish_datagrams(endpoint* eps, const char* hname, const pub_options* opts)
            c + 1, opts->po_cnt);
 
     for (e = eps; e != NULL; e = e->ep_next) {
-      fill_payload(&pl, e, c, hname, opts);
+      fill_payload(&pl, e, c, opts);
 
       // Set the multicast address.
       addr.sin_addr.s_addr = e->ep_maddr.s_addr;
@@ -404,9 +401,6 @@ main(int argc, char* argv[])
   int ep_cnt;
   int ep_idx;
 
-  // Cached hostname.
-  char hname[HNAME_LEN + 1];
-
   eps = NULL;
   ep_cnt = 0;
   ep_idx = 0;
@@ -416,7 +410,7 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Obtain the hostname.
-  if (!cache_hostname(hname))
+  if (!cache_hostname())
     return EXIT_FAILURE;
 
   // Parse and validate endpoints.
@@ -428,7 +422,7 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Publish datagrams to selected multicast groups.
-  if (!publish_datagrams(eps, hname, &opts))
+  if (!publish_datagrams(eps, &opts))
     return EXIT_FAILURE;
 
   free_endpoints(eps);

@@ -16,6 +16,9 @@
 /// Global logging message level threshold.
 extern uint8_t glvl;
 
+/// Hostname.
+extern char hname[HNAME_LEN];
+
 // Semantic versioning scheme.
 #define MBEAT_VERSION_MAJOR 1
 #define MBEAT_VERSION_MINOR 8
@@ -42,7 +45,7 @@ extern uint8_t glvl;
 #define ENDPOINT_MAX 83886080
 
 void free_endpoints(endpoint* eps);
-bool cache_hostname(char* hname);
+bool cache_hostname(void);
 void convert_nanos(struct timespec* tv, const uint64_t ms);
 uint64_t htonll(const uint64_t x);
 uint64_t ntohll(const uint64_t x);
