@@ -51,30 +51,4 @@ typedef struct _endpoint {
   struct _endpoint* ep_next;             ///< Link to the next endpoint.
 } endpoint;
 
-/// Command-line options of the publisher utility.
-typedef struct _pub_options {
-  uint64_t po_buf;  ///< Socket send buffer size in bytes.
-  uint64_t po_cnt;  ///< Number of published datagrams.
-  uint64_t po_int;  ///< Wait time between published datagrams.
-  uint64_t po_ttl;  ///< Time-To-Live for published datagrams.
-  uint64_t po_sid;  ///< Session ID of the current run.
-  uint64_t po_port; ///< UDP port for all endpoints.
-  uint8_t  po_err;  ///< Process exit on publishing error.
-  uint8_t  po_lop;  ///< Datagram looping on localhost.
-  uint8_t  po_lvl;  ///< Logging verbosity level.
-} pub_options;
-
-/// Command-line options of the subscriber utility.
-typedef struct _sub_options {
-  uint64_t so_tout; ///< Execution timeout in milliseconds.
-  uint64_t so_buf;  ///< Socket receive buffer size in bytes.
-  uint64_t so_sid;  ///< Session ID filter of received datagrams.
-  uint64_t so_off;  ///< Sequence number offset.
-  uint64_t so_port; ///< UDP port for all endpoints.
-  uint8_t  so_err;  ///< Process exit on receiving error.
-  uint8_t  so_raw;  ///< Output received datagrams in raw binary format.
-  uint8_t  so_unb;  ///< Turn off buffering on the output stream.
-  uint8_t  so_lvl;  ///< Logging verbosity level.
-} sub_options;
-
 #endif
