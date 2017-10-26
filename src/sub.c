@@ -52,6 +52,10 @@
 #define DEF_UNBUFFERED  0 // Unbuffered output is disabled by default.
 #define DEF_NOTIFY_LEVEL 1 // Log errors and warnings by default.
 
+// Signal and event management.
+static int eqfd;
+static int sigfd;
+
 /// Print the utility usage information to the standard output.
 static void
 print_usage(void)
@@ -251,20 +255,18 @@ create_sockets(endpoint* eps, const sub_options* opts)
 
 /// Create the event queue.
 /// @return status code
-///
-/// @param[out] eqfd event queue
 static bool
-create_event_queue(int* eqfd)
+create_event_queue(void)
 {
   #if defined(__linux__)
-    *eqfd = epoll_create(ENDPOINT_MAX);
+    eqfd = epoll_create(ENDPOINT_MAX);
   #endif
 
   #if defined(__FreeBSD__)
-    *eqfd = kqueue();
+    eqfd = kqueue();
   #endif
 
-  if (*eqfd < 0) {
+  if (eqfd < 0) {
     notify(NL_ERROR, true, "Unable to create event queue");
     return false;
   }
@@ -275,10 +277,9 @@ create_event_queue(int* eqfd)
 /// Add the socket associated with each endpoint to the event queue.
 /// @return status code
 ///
-/// @param[in] eqfd event queue
 /// @param[in] eps  endpoint list
 static bool
-create_socket_events(const int eqfd, endpoint* eps)
+create_socket_events(endpoint* eps)
 {
   endpoint* ep;
 
@@ -318,11 +319,8 @@ create_socket_events(const int eqfd, endpoint* eps)
 
 /// Create a new signal file descriptor and add it to the event queue.
 /// @return status code
-///
-/// @param[out] sigfd signal file descriptor
-/// @param[in]  eqfd  event queue
 static bool
-create_signal_event(int* sigfd, const int eqfd)
+create_signal_event(void)
 {
   sigset_t mask;
 
@@ -343,16 +341,16 @@ create_signal_event(int* sigfd, const int eqfd)
 
   #if defined(__linux__)
     // Create a new signal file descriptor.
-    *sigfd = signalfd(-1, &mask, 0);
-    if (*sigfd == -1) {
+    sigfd = signalfd(-1, &mask, 0);
+    if (sigfd == -1) {
       notify(NL_ERROR, true, "Unable to create signal file descriptor");
       return false;
     }
 
     // Add the signal file descriptor to the event queue.
     ev.events = EPOLLIN;
-    ev.data.fd = *sigfd;
-    if (epoll_ctl(eqfd, EPOLL_CTL_ADD, *sigfd, &ev) == -1) {
+    ev.data.fd = sigfd;
+    if (epoll_ctl(eqfd, EPOLL_CTL_ADD, sigfd, &ev) == -1) {
       notify(NL_ERROR, false,
              "Unable to add the signal file descriptor to the event queue");
       return false;
@@ -634,11 +632,9 @@ handle_event(endpoint* ep, const sub_options* opts)
 /// Receive datagrams on all initialized connections.
 /// @return status code
 ///
-/// @param[in] eqfd  epoll(2) file descriptor
-/// @param[in] sigfd signal file descriptor
 /// @param[in] opts  command-line options
 static bool
-receive_datagrams(const int eqfd, const int sigfd, const sub_options* opts)
+receive_datagrams(const sub_options* opts)
 {
   int ev_cnt;
   int i;
@@ -733,11 +729,6 @@ main(int argc, char* argv[])
   int ep_cnt;
   int ep_idx;
 
-  // Signal and event management.
-  int eqfd;
-  int sigfd;
-
-
   eps = NULL;
   ep_cnt = 0;
   ep_idx = 0;
@@ -758,7 +749,7 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Create the event queue.
-  if (!create_event_queue(&eqfd))
+  if (!create_event_queue())
     return EXIT_FAILURE;
 
   // Initialise the sockets based on selected interfaces.
@@ -766,15 +757,15 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Create the socket events and add them to the event queue.
-  if (!create_socket_events(eqfd, eps))
+  if (!create_socket_events(eps))
     return EXIT_FAILURE;
 
   // Create a signal event and add it to the event queue.
-  if (!create_signal_event(&sigfd, eqfd))
+  if (!create_signal_event())
     return EXIT_FAILURE;
 
   // Start receiving datagrams.
-  if (!receive_datagrams(eqfd, sigfd, &opts))
+  if (!receive_datagrams(&opts))
     return EXIT_FAILURE;
 
   fflush(stdout);
