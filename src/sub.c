@@ -44,7 +44,6 @@
 
 
 // Default values for optional arguments.
-#define DEF_TIMEOUT     0 // Zero denotes no timeout is applied.
 #define DEF_BUFFER_SIZE 0 // Zero denotes the system default.
 #define DEF_SESSION_ID  0 // Zero denotes no session ID filtering.
 #define DEF_OFFSET      0 // Sequence numbers have no offset by default.
@@ -72,7 +71,6 @@ print_usage(void)
     "  -p NUM  UDP port for all endpoints. (def=%d)\n"
     "  -r      Output the data in raw binary format.\n"
     "  -s SID  Only report datagrams with this session ID.\n"
-    "  -t DUR  Timeout duration of the process.\n"
     "  -u      Disable output buffering.\n",
     MBEAT_VERSION_MAJOR,
     MBEAT_VERSION_MINOR,
@@ -95,7 +93,6 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
   int opt;
 
   // Set optional arguments to sensible defaults.
-  opts->so_tout = DEF_TIMEOUT;
   opts->so_buf  = DEF_BUFFER_SIZE;
   opts->so_sid  = DEF_SESSION_ID;
   opts->so_off  = DEF_OFFSET;
@@ -105,7 +102,7 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
   opts->so_unb  = DEF_UNBUFFERED;
   opts->so_lvl  = DEF_NOTIFY_LEVEL;
 
-  while ((opt = getopt(argc, argv, "b:e:ho:p:rs:t:uv")) != -1) {
+  while ((opt = getopt(argc, argv, "b:e:ho:p:rs:uv")) != -1) {
     switch (opt) {
 
       // Receive buffer size. The lowest accepted value is 128, enforcing the
@@ -145,12 +142,6 @@ parse_args(int* ep_cnt, int* ep_idx, sub_options* opts, int argc, char* argv[])
       // Session ID of the current run.
       case 's':
         if (parse_uint64(&opts->so_sid, optarg, 1, UINT64_MAX) == 0)
-          return false;
-        break;
-
-      // Timeout for the process.
-      case 't':
-        if (parse_duration(&opts->so_tout, optarg) == 0)
           return false;
         break;
 
@@ -330,9 +321,8 @@ create_socket_events(const int eqfd, endpoint* eps)
 ///
 /// @param[out] sigfd signal file descriptor
 /// @param[in]  eqfd  event queue
-/// @param[in]  opts  command-line options
 static bool
-create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
+create_signal_event(int* sigfd, const int eqfd)
 {
   sigset_t mask;
 
@@ -347,9 +337,6 @@ create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
   sigemptyset(&mask);
   sigaddset(&mask, SIGINT);    // User-generated ^C interrupt.
   sigaddset(&mask, SIGHUP);    // Loss of a SSH connection.
-
-  if (opts->so_tout > 0)
-    sigaddset(&mask, SIGALRM); // Process timeout.
 
   // Prevent the above signals from asynchronous handling.
   sigprocmask(SIG_BLOCK, &mask, NULL);
@@ -388,15 +375,6 @@ create_signal_event(int* sigfd, const int eqfd, const sub_options* opts)
     if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
       notify(NL_ERROR, true, "Unable to add SIGHUP to the event queue");
       return false;
-    }
-
-    // Add SIGALRM to the event queue.
-    if (opts->so_tout > 0) {
-      EV_SET(&ev, SIGALRM, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
-      if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
-        notify(NL_ERROR, true, "Unable to add SIGALRM to the event queue");
-        return false;
-      }
     }
   #endif
 
@@ -712,7 +690,7 @@ receive_datagrams(const int eqfd,
     for (i = 0; i < ev_cnt; i++) {
 
       #if defined(__linux__)
-        // Handle the signal event for SIGINT, SIGHUP and optionally SIGALRM.
+        // Handle the signal event for SIGINT and SIGHUP.
         if (evs[i].data.fd == sigfd)
           return true;
 
@@ -725,7 +703,7 @@ receive_datagrams(const int eqfd,
         // Avoid unused variable warning.
         (void)sigfd;
 
-        // Handle the signal event for SIGINT, SIGHUP and optionally SIGALRM.
+        // Handle the signal event for SIGINT and SIGHUP.
         if (evs[i].filter == EVFILT_SIGNAL)
           return true;
 
@@ -734,37 +712,6 @@ receive_datagrams(const int eqfd,
           return false;
       #endif
     }
-  }
-
-  return true;
-}
-
-/// Install signal alarm with the user-selected millisecond precision.
-/// @return status code
-///
-/// @param[in] opts command-line options
-static bool
-install_alarm(const sub_options* opts)
-{
-  struct itimerspec spec;
-  timer_t tm;
-
-  // Zero denotes situation where no timeout is specified.
-  if (opts->so_tout == 0)
-    return true;
-
-  convert_nanos(&spec.it_value, opts->so_tout);
-  convert_nanos(&spec.it_interval, 0);
-
-  // Create and arm the timer based on the selected timeout.
-  if (timer_create(CLOCK_REALTIME, NULL, &tm) == -1) {
-    notify(NL_ERROR, true, "Unable to create timer");
-    return false;
-  }
-
-  if (timer_settime(tm, 0, &spec, NULL) == -1) {
-    notify(NL_ERROR, true, "Unable to set the timer");
-    return false;
   }
 
   return true;
@@ -836,11 +783,7 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Create a signal event and add it to the event queue.
-  if (!create_signal_event(&sigfd, eqfd, &opts))
-    return EXIT_FAILURE;
-
-  // Install the signal alarm.
-  if (!install_alarm(&opts))
+  if (!create_signal_event(&sigfd, eqfd))
     return EXIT_FAILURE;
 
   // Start receiving datagrams.
