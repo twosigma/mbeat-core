@@ -34,7 +34,7 @@
 #define DEF_BUFFER_SIZE           0 // Zero denotes the system default.
 #define DEF_COUNT                 5 // Number of published datagrams.
 #define DEF_INTERVAL     1000000000 // One second publishing interval.
-#define DEF_TIME_TO_LIVE          1 // Time-To-Live for published datagrams.
+#define DEF_TIME_TO_LIVE         32 // Time-To-Live for published datagrams.
 #define DEF_ERROR                 0 // Process exit on publishing error.
 #define DEF_LOOP                  0 // Looping policy on localhost.
 #define DEF_NOTIFY_LEVEL          1 // Log errors and warnings by default.
