@@ -658,6 +658,8 @@ receive_datagrams(void)
     struct kevent evs[64];
   #endif
 
+  notify(NL_DEBUG, false, "Process ID is %" PRIiMAX, (intmax_t)getpid());
+
   // Print the CSV header.
   if (!opraw)
     printf("SID,SeqNum,SeqLen,McastAddr,McastPort,SrcTTL,DstTTL,PubIf,PubHost,"

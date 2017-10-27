@@ -336,6 +336,7 @@ publish_datagrams(endpoint* eps)
   struct iovec data;
   endpoint* e;
 
+  notify(NL_DEBUG, false, "Process ID is %" PRIiMAX, (intmax_t)getpid());
   notify(NL_DEBUG, false, "Hostname is %s", hname);
   notify(NL_DEBUG, false, "UDP port is %" PRIu64, opport);
   notify(NL_DEBUG, false, "Session ID is %" PRIu64, opsid);
