@@ -391,8 +391,8 @@ publish_datagrams(endpoint* eps)
 
     // Do not sleep after the last round of datagrams.
     if (opival > 0 && c != (opcnt - 1)) {
-      nanosleep(&ts, NULL);
       notify(NL_TRACE, false, "Sleeping for %" PRIu64 " nanoseconds", opival);
+      nanosleep(&ts, NULL);
     }
   }
 
