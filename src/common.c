@@ -157,6 +157,7 @@ notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
     sprintf(errmsg, ": %s", strerror(save));
 
   // Format the level name.
+  memset(lstr, '\0', sizeof(lstr));
   if (ncol)
     sprintf(lstr, "\x1b[%dm%s\x1b[0m", lcol[lvl], lname[lvl]);
   else
