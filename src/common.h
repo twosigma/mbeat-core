@@ -13,8 +13,9 @@
 
 #include "types.h"
 
-/// Global logging message level threshold.
-extern uint8_t glvl;
+// Notification settings.
+extern uint8_t nlvl; ///< Minimal level threshold.
+extern uint8_t ncol; ///< Colouring policy.
 
 /// Hostname.
 extern char hname[HNAME_LEN];

@@ -25,8 +25,9 @@
 #include "types.h"
 
 
-/// Global notification level threshold.
-uint8_t glvl;
+// Notification settings.
+uint8_t nlvl; ///< Minimal level threshold.
+uint8_t ncol; ///< Colouring policy.
 
 /// Hostname.
 char hname[HNAME_LEN];
@@ -130,9 +131,11 @@ notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
   va_list args;
   int save;
   static const char* lname[] = {"ERROR", " WARN", " INFO", "DEBUG", "TRACE"};
+  static const int lcol[]    = {31, 33, 32, 34, 35};
+  char lstr[32];
 
   // Ignore messages that fall below the global threshold.
-  if (lvl > glvl)
+  if (lvl > nlvl)
     return;
 
   // Save the errno with which the function was called.
@@ -153,6 +156,12 @@ notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
   if (perr)
     sprintf(errmsg, ": %s", strerror(save));
 
+  // Format the level name.
+  if (ncol)
+    sprintf(lstr, "\x1b[%dm%s\x1b[0m", lcol[lvl], lname[lvl]);
+  else
+    memcpy(lstr, lname[lvl], strlen(lname[lvl]));
+
   // Print the final log line.
-  (void)fprintf(stderr, "[%s] %s - %s%s\n", tstr, lname[lvl], msg, errmsg);
+  (void)fprintf(stderr, "[%s] %s - %s%s\n", tstr, lstr, msg, errmsg);
 }

@@ -51,6 +51,7 @@
 #define DEF_RAW_OUTPUT   0 // Raw binary output is disabled by default.
 #define DEF_UNBUFFERED   0 // Unbuffered output is disabled by default.
 #define DEF_NOTIFY_LEVEL 1 // Log errors and warnings by default.
+#define DEF_NOTIFY_COLOR 1 // Colors in the notification output.
 
 // Command-line options.
 static uint64_t opbuf;  ///< Socket receive buffer size in bytes.
@@ -61,6 +62,7 @@ static uint8_t  operr;  ///< Process exit policy on receiving error.
 static uint8_t  opraw;  ///< Output received datagrams in raw binary format.
 static uint8_t  opunb;  ///< Turn off buffering on the output stream.
 static uint8_t  opnlvl; ///< Notification verbosity level.
+static uint8_t  opncol; ///< Notification coloring policy.
 
 // Signal and event management.
 static int eqfd;
@@ -81,6 +83,7 @@ print_usage(void)
     "  -b BSZ  Receive buffer size in bytes.\n"
     "  -e      Stop the process on receiving error.\n"
     "  -h      Print this help message.\n"
+    "  -n      Turn off colors in logging messages.\n"
     "  -o OFF  Ignore payloads with lesser sequence number. (def=%d)\n"
     "  -p NUM  UDP port for all endpoints. (def=%d)\n"
     "  -r      Output the data in raw binary format.\n"
@@ -113,9 +116,10 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   operr  = DEF_ERROR;
   opraw  = DEF_RAW_OUTPUT;
   opunb  = DEF_UNBUFFERED;
-  opnlvl = DEF_NOTIFY_LEVEL;
+  opnlvl = nlvl = DEF_NOTIFY_LEVEL;
+  opncol = ncol = DEF_NOTIFY_COLOR;
 
-  while ((opt = getopt(argc, argv, "b:e:ho:p:rs:uv")) != -1) {
+  while ((opt = getopt(argc, argv, "b:e:hno:p:rs:uv")) != -1) {
     switch (opt) {
 
       // Receive buffer size.
@@ -133,6 +137,11 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
       case 'h':
         print_usage();
         return false;
+
+      // Turn off the notification coloring.
+      case 'n':
+        opncol = 0;
+        break;
 
       // Sequence number offset.
       case 'o':
@@ -182,7 +191,8 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   }
 
   // Set the requested global logging level threshold.
-  glvl = opnlvl;
+  nlvl = opnlvl;
+  ncol = opncol;
 
   *ep_cnt = argc - optind;
   *ep_idx = optind;

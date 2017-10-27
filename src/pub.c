@@ -38,6 +38,7 @@
 #define DEF_ERROR                 0 // Process exit on publishing error.
 #define DEF_LOOP                  0 // Looping policy on localhost.
 #define DEF_NOTIFY_LEVEL          1 // Log errors and warnings by default.
+#define DEF_NOTIFY_COLOR          1 // Colors in the notification output.
 
 // Command-line options.
 static uint64_t opbuf;  ///< Socket send buffer size in bytes.
@@ -49,6 +50,7 @@ static uint64_t opport; ///< UDP port for all endpoints.
 static uint8_t  operr;  ///< Process exit policy on publishing error.
 static uint8_t  oploop; ///< Datagram looping policy on local host.
 static uint8_t  opnlvl; ///< Notification verbosity level.
+static uint8_t  opncol; ///< Notification coloring policy.
 
 /// Print the utility usage information to the standard output.
 static void
@@ -68,6 +70,7 @@ print_usage(void)
     "  -h      Print this help message.\n"
     "  -i DUR  Time interval between published datagrams. (def=1s)\n"
     "  -l      Turn on datagram looping.\n"
+    "  -n      Turn off colors in logging messages.\n"
     "  -p NUM  UDP port to use for all endpoints. (def=%d)\n"
     "  -s SID  Session ID for the current run. (def=random)\n"
     "  -t TTL  Set the Time-To-Live for all published datagrams. (def=%d)\n",
@@ -124,10 +127,11 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   operr  = DEF_ERROR;
   oploop = DEF_LOOP;
   opport = MBEAT_PORT;
-  opnlvl = DEF_NOTIFY_LEVEL;
+  opnlvl = nlvl = DEF_NOTIFY_LEVEL;
+  opncol = ncol = DEF_NOTIFY_COLOR;
   opsid  = generate_sid();
 
-  while ((opt = getopt(argc, argv, "b:c:ehi:lp:s:t:v")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:ehi:lnp:s:t:v")) != -1) {
     switch (opt) {
 
       // Send buffer size.
@@ -161,6 +165,11 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
       // Enable the datagram looping on localhost.
       case 'l':
         oploop = 1;
+        break;
+
+      // Turn off the notification coloring.
+      case 'n':
+        opncol = 0;
         break;
 
       // UDP port for all endpoints.
@@ -201,7 +210,8 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   }
 
   // Set the requested global logging level threshold.
-  glvl = opnlvl;
+  nlvl = opnlvl;
+  ncol = opncol;
 
   *ep_cnt = argc - optind;
   *ep_idx = optind;
