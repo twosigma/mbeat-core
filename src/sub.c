@@ -44,12 +44,12 @@
 
 
 // Default values for optional arguments.
-#define DEF_BUFFER_SIZE 0 // Zero denotes the system default.
-#define DEF_SESSION_ID  0 // Zero denotes no session ID filtering.
-#define DEF_OFFSET      0 // Sequence numbers have no offset by default.
-#define DEF_ERROR       0 // Do not stop the process on receiving error.
-#define DEF_RAW_OUTPUT  0 // Raw binary output is disabled by default.
-#define DEF_UNBUFFERED  0 // Unbuffered output is disabled by default.
+#define DEF_BUFFER_SIZE  0 // Zero denotes the system default.
+#define DEF_SESSION_ID   0 // Zero denotes no session ID filtering.
+#define DEF_OFFSET       0 // Sequence numbers have no offset by default.
+#define DEF_ERROR        0 // Do not stop the process on receiving error.
+#define DEF_RAW_OUTPUT   0 // Raw binary output is disabled by default.
+#define DEF_UNBUFFERED   0 // Unbuffered output is disabled by default.
 #define DEF_NOTIFY_LEVEL 1 // Log errors and warnings by default.
 
 // Command-line options.
