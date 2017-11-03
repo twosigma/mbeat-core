@@ -34,6 +34,7 @@
 #define DEF_BUFFER_SIZE           0 // Zero denotes the system default.
 #define DEF_COUNT                 5 // Number of published datagrams.
 #define DEF_INTERVAL     1000000000 // One second publishing interval.
+#define DEF_OFFSET                0 // Payloads start at zero.
 #define DEF_TIME_TO_LIVE         32 // Time-To-Live for published datagrams.
 #define DEF_ERROR                 0 // Process exit on publishing error.
 #define DEF_LOOP                  0 // Looping policy on localhost.
@@ -45,6 +46,7 @@ static uint64_t opbuf;  ///< Socket send buffer size in bytes.
 static uint64_t opcnt;  ///< Number of publishing rounds.
 static uint64_t opival; ///< Wait time between publishing rounds.
 static uint64_t opttl;  ///< Time-To-Live for published datagrams.
+static uint64_t opoff;  ///< Offset of published payload sequence numbers.
 static uint64_t opsid;  ///< Internal session ID of the current process.
 static uint64_t opport; ///< UDP port for all endpoints.
 static uint8_t  operr;  ///< Process exit policy on publishing error.
@@ -71,6 +73,7 @@ print_usage(void)
     "  -i DUR  Time interval between published datagrams. (def=1s)\n"
     "  -l      Turn on datagram looping.\n"
     "  -n      Turn off colors in logging messages.\n"
+    "  -o OFF  Payloads start with selected sequence number offset. (def=%d)\n"
     "  -p NUM  UDP port to use for all endpoints. (def=%d)\n"
     "  -s SID  Session ID for the current run. (def=random)\n"
     "  -t TTL  Set the Time-To-Live for all published datagrams. (def=%d)\n",
@@ -78,6 +81,7 @@ print_usage(void)
     MBEAT_VERSION_MINOR,
     MBEAT_VERSION_PATCH,
     DEF_COUNT,
+    DEF_OFFSET,
     MBEAT_PORT,
     DEF_TIME_TO_LIVE);
 }
@@ -124,6 +128,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   opcnt  = DEF_COUNT;
   opival = DEF_INTERVAL;
   opttl  = DEF_TIME_TO_LIVE;
+  opoff  = DEF_OFFSET;
   operr  = DEF_ERROR;
   oploop = DEF_LOOP;
   opport = MBEAT_PORT;
@@ -131,7 +136,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   opncol = ncol = DEF_NOTIFY_COLOR;
   opsid  = generate_sid();
 
-  while ((opt = getopt(argc, argv, "b:c:ehi:lnp:s:t:v")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:ehi:lno:p:s:t:v")) != -1) {
     switch (opt) {
 
       // Send buffer size.
@@ -170,6 +175,12 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
       // Turn off the notification coloring.
       case 'n':
         opncol = 0;
+        break;
+
+      // Offset for published payloads.
+      case 'o':
+        if (parse_uint64(&opoff, optarg, 0, UINT64_MAX) == 0)
+          return false;
         break;
 
       // UDP port for all endpoints.
@@ -354,10 +365,10 @@ publish_datagrams(endpoint* eps)
   // Publish the requested number of datagrams.
   for (c = 0; c < opcnt; c++) {
     notify(NL_DEBUG, false, "Round %" PRIu64 "/%" PRIu64 " of datagrams",
-           c + 1, opcnt);
+           c + 1 + opoff, opcnt + opoff);
 
     for (e = eps; e != NULL; e = e->ep_next) {
-      fill_payload(&pl, e, c);
+      fill_payload(&pl, e, c + opoff);
 
       // Set the multicast address.
       addr.sin_addr.s_addr = e->ep_maddr.s_addr;
