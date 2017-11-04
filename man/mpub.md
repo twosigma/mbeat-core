@@ -35,6 +35,10 @@ The utility accepts the following command-line options:
   * `-l`:
     Enables local loopback for published multicast datagrams.
 
+  * `-o` _OFF_:
+    Sets the offset from which all published payload sequence numbers will
+    start. The default is 0.
+
   * `-p` _NUM_:
     Specify the UDP port of all created endpoints. The default value is 22999.
 
