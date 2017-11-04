@@ -350,8 +350,8 @@ create_signal_event(void)
   #endif
 
   sigemptyset(&mask);
-  sigaddset(&mask, SIGINT);    // User-generated ^C interrupt.
-  sigaddset(&mask, SIGHUP);    // Loss of a SSH connection.
+  sigaddset(&mask, SIGINT); // User-generated ^C interrupt.
+  sigaddset(&mask, SIGHUP); // Loss of a SSH connection.
 
   // Prevent the above signals from asynchronous handling.
   sigprocmask(SIG_BLOCK, &mask, NULL);
