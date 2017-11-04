@@ -55,6 +55,10 @@ Sets the session ID of each outgoing mbeat payload to \fISID\fR (see SESSION IDE
 \fB\-t\fR \fITTL\fR
 Sets the Time\-To\-Live property of each outgoing datagram to \fITTL\fR\. If not specified, the value defaults to 64\.
 .
+.TP
+\fB\-v\fR
+Enables more verbose logging\. Repeating this flag will turn on more detailed levels of logging messages: INFO, DEBUG, and TRACE\.
+.
 .SH "ENDPOINTS"
 The positional arguments of the utility are endpoints: an ordered tuple consisting of local interface name, multicast group and the multicast port\. It is possible to specify up to 83886080 endpoints\.
 .

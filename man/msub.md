@@ -46,6 +46,10 @@ The utility accepts the following command-line options:
   * `-u`:
     Disables output buffering.
 
+  * `-v`:
+    Enables more verbose logging. Repeating this flag will turn on more
+    detailed levels of logging messages: INFO, DEBUG, and TRACE.
+
 ## ENDPOINTS
 The positional arguments of the utility are endpoints: an ordered tuple
 consisting of local interface name, multicast group and the multicast port. It

@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "MSUB" "8" "September 2017" "" ""
+.TH "MSUB" "8" "November 2017" "" ""
 .
 .SH "NAME"
 \fBmsub\fR \- multicast heartbeat subscriber
@@ -50,6 +50,10 @@ If set, the process will terminate after the selected time duration passes\.
 .TP
 \fB\-u\fR
 Disables output buffering\.
+.
+.TP
+\fB\-v\fR
+Enables more verbose logging\. Repeating this flag will turn on more detailed levels of logging messages: INFO, DEBUG, and TRACE\.
 .
 .SH "ENDPOINTS"
 The positional arguments of the utility are endpoints: an ordered tuple consisting of local interface name, multicast group and the multicast port\. It is possible to specify up to 83886080 endpoints\.

@@ -50,6 +50,10 @@ The utility accepts the following command-line options:
     Sets the Time-To-Live property of each outgoing datagram to
     _TTL_. If not specified, the value defaults to 64.
 
+  * `-v`:
+    Enables more verbose logging. Repeating this flag will turn on more
+    detailed levels of logging messages: INFO, DEBUG, and TRACE.
+
 ## ENDPOINTS
 The positional arguments of the utility are endpoints: an ordered tuple
 consisting of local interface name, multicast group and the multicast port. It
