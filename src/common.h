@@ -21,9 +21,9 @@ extern uint8_t ncol; ///< Colouring policy.
 extern char hname[HNAME_LEN];
 
 // Semantic versioning scheme.
-#define MBEAT_VERSION_MAJOR 1
-#define MBEAT_VERSION_MINOR 9
-#define MBEAT_VERSION_PATCH 0
+#define MBEAT_VERSION_MAJOR  1
+#define MBEAT_VERSION_MINOR 10
+#define MBEAT_VERSION_PATCH  0
 
 // Standard UDP port.
 #define MBEAT_PORT 22999
