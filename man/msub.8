@@ -1,188 +1,208 @@
-.\" generated with Ronn/v0.7.3
-.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.Dd Dec 3, 2017
+.Dt MBEAT 8
+.Os UNIX
+.Sh NAME
+.Nm msub
+.Nd network heartbeat subscriber
+.Sh SYNOPSIS
+.Nm
+.Op Fl b Ar bsz
+.Op Fl e
+.Op Fl h
+.Op Fl o Ar off
+.Op Fl p Ar num
+.Op Fl r
+.Op Fl s Ar sid
+.Op Fl t Ar ttl
+.Op Fl u
+.Op Fl v
+.Sm off
+.Em iface
+.Ns =
+.Em maddr
+.Sm on
+.Bo
+iface=maddr ...
+.Bc
+.Sh DESCRIPTION
+The
+.Nm
+utility subscribes to UDP datagrams for a set of network endpoints. It can be
+used in conjunction with the
+.Xr mpub 8
+utility to test, debug and verify network configurations.
+.Sh ARGUMENTS
+.Bl -tag -width Ds
+.It Ar iface
+.Ns Network interface that will be used for publishing datagrams, e.g.
+.Em eth0 .
 .
-.TH "MSUB" "8" "November 2017" "" ""
+.It Ar maddr
+Multicast network address in the IPv4 family, written in the dotted quad
+.Ns notation, e.g.
+.Em 239.192.40.1 .
+.El
+.Sh OPTIONS
+The utility accepts the following command-line options:
+.Bl -tag -width Ds
+.It Fl b Ar bsz
+Sets the socket receive buffer size that is used for all endpoints. If not
+specified, the value defaults to the kernel default.
 .
-.SH "NAME"
-\fBmsub\fR \- multicast heartbeat subscriber
+.It Fl e
+The process will terminate when the first receiving error is encountered.
+If not specified, the process will only print the relevant error message.
 .
-.SH "SYNOPSIS"
-\fBmsub\fR \fIOPTIONS\fR \fIiface\fR=\fImaddr\fR [iface=maddr \.\.\.]
+.It Fl h
+Prints the usage message.
 .
-.SH "DESCRIPTION"
-The \fBmsub\fR utility subscribes to multicast UDP datagrams for a set of network endpoints\. It can be used in conjunction with the \fBmpub(8)\fR utility to test and debug multicast network configurations\.
+.It Fl o Ar off
+Sets the sequence number offset, so that all mbeat payloads with sequence
+number lesser than
+.Ar off
+are ignored. All subsequent sequence numbers are printed shifted by the
+.Ar off
+value. The default value is
+.Em 0 .
 .
-.SH "OPTIONS"
-The utility accepts the following command\-line options:
+.It Fl p Ar num
+Specify the UDP port of all created endpoints. The default value is
+.Em 22999 .
 .
-.TP
-\fB\-b\fR \fIBSZ\fR
-Sets the socket receive buffer size to \fIBSZ\fR bytes\. If not specified, the value defaults to the Linux kernel default\.
+.It Fl r
+Enables the raw binary output instead of the default CSV (see OUTPUT FORMAT).
 .
-.TP
-\fB\-e\fR
-The process will terminate when the first receiving error is encountered\. If not specified, the process will only print the relevant error message\.
+.It Fl s Ar sid
+Sets the session ID filter on incoming mbeat payloads, so that only those
+with session ID equal to
+.Ar sid
+get printed out (see SESSION IDENTIFICATION). If not specified, all payloads
+are accepted.
 .
-.TP
-\fB\-h\fR
-Prints the usage message\.
+.It Fl u
+Disables output buffering.
 .
-.TP
-\fB\-o\fR \fIOFF\fR
-Sets the sequence number offset, so that all mbeat payloads with sequence number lesser than \fIOFF\fR are ignored\. All subsequent sequence numbers are printed shifted by the \fIOFF\fR value\.
-.
-.TP
-\fB\-p\fR \fINUM\fR
-Specify the UDP port of all created endpoints\. The default value is 22999\.
-.
-.TP
-\fB\-r\fR
-Enables the raw binary output instead of the default CSV\. See \fBOUTPUT FORMAT\fR\.
-.
-.TP
-\fB\-s\fR \fISID\fR
-Sets the session ID filter on incoming mbeat payloads, so that only those with session ID equal to \fISID\fR get printed out (see SESSION IDENTIFICATION)\. If not specified, all payloads are accepted\.
-.
-.TP
-\fB\-t\fR \fIDUR\fR
-If set, the process will terminate after the selected time duration passes\.
-.
-.TP
-\fB\-u\fR
-Disables output buffering\.
-.
-.TP
-\fB\-v\fR
-Enables more verbose logging\. Repeating this flag will turn on more detailed levels of logging messages: INFO, DEBUG, and TRACE\.
-.
-.SH "ENDPOINTS"
-The positional arguments of the utility are endpoints: an ordered tuple consisting of local interface name, multicast group and the multicast port\. It is possible to specify up to 83886080 endpoints\.
-.
-.SH "SESSION IDENTIFICATION"
-In order to support multiple simultaneous runs of the tool, the publisher can stamp the payload with a session ID \- a 64\-bit unsigned integer \- that identifies the set of outgoing packets\. In return, the subscriber utility is able to exclusively listen to only certain session ID\.
-.
-.SH "DURATION FORMAT"
-The time duration has to be specified by an unsigned integer, followed by a time unit\. An example of a valid duration is \fI1s\fR\. Supported units are: \fIns\fR, \fIus\fR, \fIms\fR, \fIs\fR, \fIm\fR, \fIh\fR, \fId\fR\. Zero duration is allowed, e\.g\. \fI0ms\fR\.
-.
-.SH "PAYLOAD FORMAT"
-The format of the payload is binary\. All numeric fields are unsigned integers in network byte order, while the 64\-bit numbers are split into high and low 32\-bits, encoded in the network byte order\. The total payload size is 128 bytes\. All valid payloads must start with a magic number 0x6d626974, which stands for four ASCII letters "mbit"\. The current format version is 2\.
-.
-.P
+.It Fl v
+Enables more verbose logging. Repeating this flag will turn on more
+detailed levels of logging messages: INFO, DEBUG, and TRACE.
+.El
+.Sh ENDPOINTS
+The positional arguments of the utility are endpoints: an ordered tuple
+consisting of local interface name, multicast group and the multicast port. It
+is possible to specify up to 83886080 endpoints.
+.Sh SESSION IDENTIFICATION
+In order to support multiple simultaneous runs of the tool, the publisher can
+stamp the payload with a session ID - a 64-bit unsigned integer - that
+identifies the set of outgoing packets. Similarly the subscriber utility is
+able to filter out everything but a given session ID.
+.Sh PAYLOAD FORMAT
+The format of the payload is binary. All numeric fields are unsigned
+integers in network byte order, while the 64-bit numbers are split into high
+and low 32-bits, encoded in the network byte order. The total payload size is
+128 bytes. All valid payloads must start with a magic number
+.Em 0x6d626974 ,
+which is a big-endian equivalent of four ASCII letters
+.Qq mbit .
+The current format version is
+.Em 2 .
 Each payload contains the following fields in order:
-.
-.IP "\(bu" 4
+.Pp
+.Bl -dash -compact -offset indent 
+.It
 magic value (4 bytes)
-.
-.IP "\(bu" 4
+.It
 format version number (1 byte)
-.
-.IP "\(bu" 4
-source Time\-To\-Live value (1 byte)
-.
-.IP "\(bu" 4
+.It
+source Time-To-Live value (1 byte)
+.It
 multicast port (2 bytes)
-.
-.IP "\(bu" 4
+.It
 multicast group (4 bytes)
-.
-.IP "\(bu" 4
+.It
 time of departure nanoseconds part (4 bytes)
-.
-.IP "\(bu" 4
+.It
 time of departure UNIX timestamp (8 bytes)
-.
-.IP "\(bu" 4
+.It
 session ID (8 bytes)
-.
-.IP "\(bu" 4
+.It
 sequence interation counter (8 bytes)
-.
-.IP "\(bu" 4
+.It
 sequence length (8 bytes)
-.
-.IP "\(bu" 4
-publisher\'s interface name (16 bytes)
-.
-.IP "\(bu" 4
-publisher\'s hostname (64 bytes)
-.
-.IP "" 0
-.
-.SH "OUTPUT FORMAT \- CSV"
-The default output format is ASCII\-encoded CSV file complaint with the RFC4180 standard\. The table has the following column headers (listed in order):
-.
-.IP "\(bu" 4
+.It
+publisher interface name (16 bytes)
+.It
+publisher hostname (64 bytes)
+.El
+.Sh OUTPUT FORMAT - COMMA-SEPARATED VALUES 
+The default output format is ASCII-encoded CSV file complaint with the 
+.Em RFC4180
+standard. The table has the following column headers (listed in order):
+.Pp
+.Bl -dash -compact -offset indent
+.It
 SessionID
-.
-.IP "\(bu" 4
+.It
 SequenceNum
-.
-.IP "\(bu" 4
+.It
 SequenceLen
-.
-.IP "\(bu" 4
+.It
 MulticastAddr
-.
-.IP "\(bu" 4
+.It
 MulticastPort
-.
-.IP "\(bu" 4
+.It
 SrcTTL
-.
-.IP "\(bu" 4
+.It
 DstTTL
-.
-.IP "\(bu" 4
+.It
 PubInterface
-.
-.IP "\(bu" 4
+.It
 PubHostname
-.
-.IP "\(bu" 4
+.It
 SubInterface
-.
-.IP "\(bu" 4
+.It
 SubHostname
-.
-.IP "\(bu" 4
+.It
 TimeOfDeparture
-.
-.IP "\(bu" 4
+.It
 TimeOfArrival
-.
-.IP "" 0
-.
-.SH "OUTPUT FORMAT \- RAW BINARY"
-The raw binary format re\-uses the exact structure of the payload, while appending 4 more fields:
-.
-.IP "\(bu" 4
+.El
+.Sh OUTPUT FORMAT - RAW BINARY
+The raw binary format re-uses the exact structure of the payload, while
+appending
+.Em 7
+more fields:
+.Pp
+.Bl -dash -compact -offset indent
+.It
 interface name on the receivers end (16 bytes)
-.
-.IP "\(bu" 4
+.It
 host name on the receivers end (64 bytes)
-.
-.IP "\(bu" 4
+.It
 time of arrival UNIX timestamp (8 bytes)
-.
-.IP "\(bu" 4
+.It
 time of arrival nanoseconds part (4 bytes)
-.
-.IP "\(bu" 4
-destination Time\-To\-Live value availability (1 byte)
-.
-.IP "\(bu" 4
-destination Time\-To\-Live value (1 byte)
-.
-.IP "\(bu" 4
-padding \- unused (2 bytes)
-.
-.IP "" 0
-.
-.P
-Unlike the CSV format, there is no header entry in raw binary\. Unlike the on\-wire payload representation, data is outputted in the host byte order\.
-.
-.SH "RETURN VALUE"
-The process returns \fI0\fR on success, \fI1\fR on failure\. Normal program output is printed on the standard output stream, while warnings and errors appear on the standard error stream\.
-.
-.SH "SEE ALSO"
-mpub(8)
+.It
+destination Time-To-Live value availability (1 byte)
+.It
+destination Time-To-Live value (1 byte)
+.It
+padding - unused (2 bytes)
+.El
+.Pp
+Unlike the CSV format, there is no header entry in raw binary. Unlike the
+on-wire payload representation, data is outputted in the host byte order.
+.Sh EXIT CODE
+The process returns
+.Em 0
+on success,
+.Em 1
+on failure.
+Normal program output is printed on the standard output stream, while warnings
+and errors appear on the standard error stream.
+.Sh AUTHORS
+.An Daniel Lovasko Aq Mt dlovasko@twosigma.com
+.Sh SEE ALSO
+.Xr mpub 8 ,
+.Xr socket 2 ,
+.Xr recv 2 ,
+.Xr select 2

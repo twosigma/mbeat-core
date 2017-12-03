@@ -1,119 +1,172 @@
-.\" generated with Ronn/v0.7.3
-.\" http://github.com/rtomayko/ronn/tree/0.7.3
+.Dd Dec 3, 2017
+.Dt MBEAT 8
+.Os UNIX
+.Sh NAME
+.Nm mpub
+.Nd network heartbeat publisher
+.Sh SYNOPSIS
+.Nm
+.Op Fl b Ar bsz
+.Op Fl c Ar cnt
+.Op Fl e
+.Op Fl h
+.Op Fl i Ar dur
+.Op Fl l
+.Op Fl o Ar off
+.Op Fl p Ar num
+.Op Fl s Ar sid
+.Op Fl t Ar ttl
+.Op Fl v
+.Sm off
+.Em iface
+.Ns =
+.Em maddr
+.Sm on
+.Bo
+iface=maddr ...
+.Bc
+.Sh DESCRIPTION
+The
+.Nm
+utility publishes multicast UDP datagrams to a set of network endpoints. It can
+be used in conjunction with the
+.Xr msub 8
+utility to test, debug and verify network configurations.
+.Sh ARGUMENTS
+.Bl -tag -width Ds
+.It Ar iface
+.Ns Network interface that will be used for publishing datagrams, e.g.
+.Em eth0 .
 .
-.TH "MPUB" "8" "November 2017" "" ""
+.It Ar maddr
+Multicast network address in the IPv4 family, written in the dotted quad
+.Ns notation, e.g.
+.Em 239.192.40.1 .
+.El
+.Sh OPTIONS
+The utility accepts the following command-line options:
+.Bl -tag -width Ds
+.It Fl b Ar bsz
+Sets the socket send buffer size that is used for all endpoints.
+If not specified, the value defaults to the kernel default.
 .
-.SH "NAME"
-\fBmpub\fR \- multicast heartbeat publisher
+.It Fl c Ar cnt
+Sets the number of outgoing datagrams per endpoint.
+If not specified, the value defaults to
+.Em 5 .
 .
-.SH "SYNOPSIS"
-\fBmpub\fR \fIOPTIONS\fR \fIiface\fR=\fImaddr\fR [iface=maddr \.\.\.]
+.It Fl e
+The process will terminate when the first publishing error is encountered.
+If not specified, the process will only print the relevant error message.
 .
-.SH "DESCRIPTION"
-The \fBmpub\fR utility publishes multicast UDP datagrams to a set of network endpoints\. It can be used in conjunction with the \fBmsub(8)\fR utility to test and debug multicast network configurations\.
+.It Fl h
+Prints the usage message.
 .
-.SH "OPTIONS"
-The utility accepts the following command\-line options:
+.It Fl i Ar dur
+Sets the interval between outgoing datagrams per endpoint to
+the specified duration (see DURATION FORMAT). If not specified, the
+interval defaults to
+.Em 1
+second.
 .
-.TP
-\fB\-b\fR \fIBSZ\fR
-Sets the socket send buffer size to \fIBSZ\fR bytes\. If not specified, the value defaults to the Linux kernel default\.
+.It Fl l
+Enables local delivery for published multicast datagrams.
 .
-.TP
-\fB\-c\fR \fICNT\fR
-Sets the number of outgoing datagrams per endpoint to \fICNT\fR\. If not specified, the value defaults to 5\.
+.It Fl o Ar off
+Sets the offset from which all published payload sequence numbers will
+start. The default is
+.Em 0 .
 .
-.TP
-\fB\-e\fR
-The process will terminate when the first publishing error is encountered\. If not specified, the process will only print the relevant error message\.
+.It Fl p Ar num
+Specify the UDP port of all created endpoints. The default value is
+.Em 22999 .
 .
-.TP
-\fB\-h\fR
-Prints the usage message\.
+.It Fl s Ar sid
+Sets the session ID of each outgoing mbeat payload (see SESSION
+IDENTIFICATION). If not specified, a random value is generated.
 .
-.TP
-\fB\-i\fR \fIDUR\fR
-Sets the interval between outgoing datagrams per endpoint to the specified duration (see DURATION FORMAT)\. If not specified, the interval defaults to 1 second\.
+.It Fl t Ar ttl
+Sets the Time-To-Live property of each outgoing datagram.
+If not specified, the value defaults to
+. Em 64 .
 .
-.TP
-\fB\-l\fR
-Enables local loopback for published multicast datagrams\.
+.It Fl v
+Enables more verbose logging. Repeating this flag will turn on more
+detailed levels of logging messages: INFO, DEBUG, and TRACE.
+.El
+.Sh ENDPOINTS
+The positional arguments of the utility are endpoints: an ordered tuple
+consisting of local interface name, multicast group and the multicast port. It
+is possible to specify up to 83886080 endpoints.
+
+.Sh SESSION IDENTIFICATION
+In order to support multiple simultaneous runs of the tool, the publisher can
+stamp the payload with a session ID - a 64-bit unsigned integer - that
+identifies the set of outgoing packets. Similarly the subscriber utility is
+able to filter out everything but a given session ID.
+
+.Sh DURATION FORMAT
+The time duration has to be specified by an unsigned integer, followed by a
+time unit. An example of a valid duration is
+.Em 1s .
+Supported units are:
+.Em ns ,
+.Em us ,
+.Em ms ,
+.Em s ,
+.Em m ,
+.Em h ,
+.Em d .
+Zero duration is allowed, e.g.
+.Em 0ms .
 .
-.TP
-\fB\-o\fR \fIOFF\fR
-Sets the offset from which all published payload sequence numbers will start\. The default is 0\.
-.
-.TP
-\fB\-p\fR \fINUM\fR
-Specify the UDP port of all created endpoints\. The default value is 22999\.
-.
-.TP
-\fB\-s\fR \fISID\fR
-Sets the session ID of each outgoing mbeat payload to \fISID\fR (see SESSION IDENTIFICATION)\. If not specified, a random value is generated\.
-.
-.TP
-\fB\-t\fR \fITTL\fR
-Sets the Time\-To\-Live property of each outgoing datagram to \fITTL\fR\. If not specified, the value defaults to 64\.
-.
-.TP
-\fB\-v\fR
-Enables more verbose logging\. Repeating this flag will turn on more detailed levels of logging messages: INFO, DEBUG, and TRACE\.
-.
-.SH "ENDPOINTS"
-The positional arguments of the utility are endpoints: an ordered tuple consisting of local interface name, multicast group and the multicast port\. It is possible to specify up to 83886080 endpoints\.
-.
-.SH "SESSION IDENTIFICATION"
-In order to support multiple simultaneous runs of the tool, the publisher can stamp the payload with a session ID \- a 64\-bit unsigned integer \- that identifies the set of outgoing packets\. Similarly the subscriber utility is able to filter out everything but a given session ID\.
-.
-.SH "DURATION FORMAT"
-The time duration has to be specified by an unsigned integer, followed by a time unit\. An example of a valid duration is \fI1s\fR\. Supported units are: \fIns\fR, \fIus\fR, \fIms\fR, \fIs\fR, \fIm\fR, \fIh\fR, \fId\fR\. Zero duration is allowed, e\.g\. \fI0ms\fR\.
-.
-.SH "PAYLOAD FORMAT"
-The format of the payload is binary\. All numeric fields are unsigned integers in network byte order, while the 64\-bit numbers are split into high and low 32\-bits, encoded in the network byte order\. The total payload size is 128 bytes\. All valid payloads must start with a magic number 0x6d626974, which stands for four ASCII letters "mbit"\. The current format version is 2\.
-.
-.P
+.Sh PAYLOAD FORMAT
+The format of the payload is binary. All numeric fields are unsigned
+integers in network byte order, while the 64-bit numbers are split into high
+and low 32-bits, encoded in the network byte order. The total payload size is
+128 bytes. All valid payloads must start with a magic number
+.Em 0x6d626974 ,
+which is a big-endian equivalent of four ASCII letters
+.Qq mbit .
+The current format version is
+.Em 2 .
 Each payload contains the following fields in order:
-.
-.IP "\(bu" 4
+.Pp
+.Bl -dash -compact -offset indent 
+.It
 magic value (4 bytes)
-.
-.IP "\(bu" 4
+.It
 format version number (1 byte)
-.
-.IP "\(bu" 4
-source Time\-To\-Live value (1 byte)
-.
-.IP "\(bu" 4
+.It
+source Time-To-Live value (1 byte)
+.It
 multicast port (2 bytes)
-.
-.IP "\(bu" 4
+.It
 multicast group (4 bytes)
-.
-.IP "\(bu" 4
+.It
 time of departure nanoseconds part (4 bytes)
-.
-.IP "\(bu" 4
+.It
 time of departure UNIX timestamp (8 bytes)
-.
-.IP "\(bu" 4
+.It
 session ID (8 bytes)
-.
-.IP "\(bu" 4
+.It
 sequence interation counter (8 bytes)
-.
-.IP "\(bu" 4
+.It
 sequence length (8 bytes)
-.
-.IP "\(bu" 4
-publisher\'s interface name (16 bytes)
-.
-.IP "\(bu" 4
-publisher\'s hostname (64 bytes)
-.
-.IP "" 0
-.
-.SH "RETURN VALUE"
-The process returns \fI0\fR on success, \fI1\fR on failure\. Warnings and errors are printed to the standard error stream\.
-.
-.SH "SEE ALSO"
-msub(8)
+.It
+publisher interface name (16 bytes)
+.It
+publisher hostname (64 bytes)
+.El
+.Sh EXIT CODE 
+The process returns
+.Em 0
+on success,
+. Em 1
+on failure. Warnings and errors are printed to the standard error stream.
+.Sh AUTHORS
+.An Daniel Lovasko Aq Mt dlovasko@twosigma.com
+.Sh SEE ALSO
+.Xr msub 8 ,
+.Xr socket 2 ,
+.Xr send 2
