@@ -9,14 +9,13 @@
 #include <sys/time.h>
 #include <sys/uio.h>
 
-// Select the appropriate event queue.
 #if defined(__linux__)
   #include <sys/epoll.h>
   #include <sys/signalfd.h>
 #elif defined(__FreeBSD__)
   #include <sys/event.h>
 #else
-  #error "System not supported."
+  #include <sys/select.h>
 #endif
 
 #include <net/if.h>
@@ -65,8 +64,18 @@ static uint8_t  opnlvl; ///< Notification verbosity level.
 static uint8_t  opncol; ///< Notification coloring policy.
 
 // Signal and event management.
-static int eqfd;
-static int sigfd;
+#if defined(__linux__)
+  static int eqfd;
+  static int sigfd;
+#elif defined(__FreeBSD__)
+  static int eqfd;
+#else
+  static fd_set eqfd;
+  static int nfds;
+#endif
+
+// Object lists.
+static endpoint* eps;
 
 /// Print the utility usage information to the standard output.
 static void
@@ -202,10 +211,8 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 
 /// Create endpoint sockets and apply the interface settings.
 /// @return status code
-///
-/// @param[in] eps  endpoint list
 static bool
-create_sockets(endpoint* eps)
+create_sockets(void)
 {
   int enable;
   int buf_size;
@@ -277,26 +284,30 @@ create_event_queue(void)
 {
   #if defined(__linux__)
     eqfd = epoll_create(ENDPOINT_MAX);
-  #endif
-
-  #if defined(__FreeBSD__)
+    notify(NL_DEBUG, false, "Using the epoll backend");
+  #elif defined(__FreeBSD__)
     eqfd = kqueue();
+    notify(NL_DEBUG, false, "Using the kqueue backend");
+  #else
+    FD_ZERO(&eqfd);
+    nfds = 0;
+    notify(NL_DEBUG, false, "Using the pselect backend");
   #endif
 
-  if (eqfd < 0) {
-    notify(NL_ERROR, true, "Unable to create event queue");
-    return false;
-  }
+  #if defined(__linux__) || defined(__FreeBSD__)
+    if (eqfd < 0) {
+      notify(NL_ERROR, true, "Unable to create event queue");
+      return false;
+    }
+  #endif
 
   return true;
 }
 
 /// Add the socket associated with each endpoint to the event queue.
 /// @return status code
-///
-/// @param[in] eps  endpoint list
 static bool
-create_socket_events(endpoint* eps)
+create_socket_events(void)
 {
   endpoint* ep;
 
@@ -311,7 +322,7 @@ create_socket_events(endpoint* eps)
   // Add all sockets to the event queue. The auxiliary data pointer should
   // point at the endpoint structure, so that all relevant data can be
   // accessed when the event is triggered.
-  for (ep = eps; ep != NULL; ep = ep->ep_next) {
+  for (ep = eps; ep != NULL; ep = ep->ep_next) { 
     #if defined(__linux__)
       ev.events = EPOLLIN;
       ev.data.ptr = ep;
@@ -320,14 +331,16 @@ create_socket_events(endpoint* eps)
         notify(NL_ERROR, true, "Unable to add a socket to the event queue");
         return false;
       }
-    #endif
-
-    #if defined(__FreeBSD__)
+    #elif defined(__FreeBSD__)
       EV_SET(&ev, ep->ep_sock, EVFILT_READ, EV_ADD, 0, 0, ep);
       if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
         notify(NL_ERROR, true, "Unable to add a socket to the event queue");
         return false;
       }
+    #else
+      FD_SET(ep->ep_sock, &eqfd);
+      if (ep->ep_sock > nfds)
+        nfds = ep->ep_sock;
     #endif
   }
 
@@ -375,9 +388,6 @@ create_signal_event(void)
   #endif
 
   #if defined(__FreeBSD__)
-    // Avoid unused variable warning.
-    (void)sigfd;
-
     // Add SIGINT to the event queue.
     EV_SET(&ev, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
     if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
@@ -537,12 +547,10 @@ retrieve_ttl(int* ttl, struct msghdr* msg)
   struct cmsghdr* cmsg;
   int type;
 
-  #if defined(__linux__)
-    type = IP_TTL;
-  #endif
-
   #if defined(__FreeBSD__)
     type = IP_RECVTTL;
+  #else
+    type = IP_TTL;
   #endif
 
   notify(NL_TRACE, false, "Retrieving the Time-To-Live data");
@@ -652,10 +660,12 @@ receive_datagrams(void)
 
   #if defined(__linux__)
     struct epoll_event evs[64];
-  #endif
-
-  #if defined(__FreeBSD__)
+  #elif defined(__FreeBSD__)
     struct kevent evs[64];
+  #else
+    fd_set evs;
+    int k;
+    endpoint* ep;
   #endif
 
   notify(NL_DEBUG, false, "Process ID is %" PRIiMAX, (intmax_t)getpid());
@@ -671,10 +681,15 @@ receive_datagrams(void)
 
     #if defined(__linux__)
       ev_cnt = epoll_wait(eqfd, evs, 64, -1);
-    #endif
-
-    #if defined(__FreeBSD__)
+    #elif defined(__FreeBSD__)
       ev_cnt = kevent(eqfd, NULL, 0, evs, 64, NULL);
+    #else
+      memcpy(&evs, &eqfd, sizeof(eqfd));
+      for (k = 0; k < FD_SETSIZE; k++)  
+        if (FD_ISSET(k, &evs))
+          notify(NL_TRACE, false, "Socket %d is in the queue", k);
+      ev_cnt = select(nfds + 1, &evs, NULL, NULL, NULL);
+      k = 0;
     #endif
 
     if (ev_cnt < 0) {
@@ -682,11 +697,12 @@ receive_datagrams(void)
       return false;
     }
 
-    notify(NL_DEBUG, false, "%d events", ev_cnt);
+    notify(NL_DEBUG, false,
+           "Received %d event%s", ev_cnt, ev_cnt == 1 ? "" : "s");
 
     // Handle each event.
     for (i = 0; i < ev_cnt; i++) {
-
+      notify(NL_TRACE, false, "Round %d/%d of events", i, ev_cnt);
       #if defined(__linux__)
         // Handle the signal event for SIGINT and SIGHUP.
         if (evs[i].data.fd == sigfd)
@@ -695,18 +711,36 @@ receive_datagrams(void)
         // Handle socket events.
         if (!handle_event(evs[i].data.ptr))
           return false;
-      #endif
-
-      #if defined(__FreeBSD__)
-        // Avoid unused variable warning.
-        (void)sigfd;
-
+      #elif defined(__FreeBSD__)
         // Handle the signal event for SIGINT and SIGHUP.
         if (evs[i].filter == EVFILT_SIGNAL)
           return true;
 
         // Handle socket events.
         if (!handle_event(evs[i].udata))
+          return false;
+      #else
+        // Skip to the next 
+        while (!FD_ISSET(k, &evs) && k < FD_SETSIZE)
+          k++;
+        
+        // Check if the search was exhaustive.
+        if (k == FD_SETSIZE)
+          return true;
+
+        // Find the corresponding endpoint object.
+        for (ep = eps; ep != NULL; ep = ep->ep_next)
+          if (ep->ep_sock == k)
+            break;
+
+        // Verify that a matching endpoint exists.
+        if (ep == NULL) {
+          notify(NL_WARN, false, "Unable to find endpoint with socket %d", k);
+          return false;
+        }
+
+        // Handle socket events.
+        if (!handle_event(ep))
           return false;
       #endif
     }
@@ -731,9 +765,6 @@ disable_buffering(void)
 int
 main(int argc, char* argv[])
 {
-  // Endpoint list.
-  endpoint* eps;
-
   int ep_cnt;
   int ep_idx;
 
@@ -761,11 +792,11 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Initialise the sockets based on selected interfaces.
-  if (!create_sockets(eps))
+  if (!create_sockets())
     return EXIT_FAILURE;
 
   // Create the socket events and add them to the event queue.
-  if (!create_socket_events(eps))
+  if (!create_socket_events())
     return EXIT_FAILURE;
 
   // Create a signal event and add it to the event queue.
