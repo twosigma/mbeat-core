@@ -53,15 +53,15 @@
 #define DEF_NOTIFY_COLOR 1 // Colors in the notification output.
 
 // Command-line options.
-static uint64_t opbuf;  ///< Socket receive buffer size in bytes.
-static uint64_t opsid;  ///< Session ID filter of received datagrams.
-static uint64_t opoff;  ///< Sequence number offset.
-static uint64_t opport; ///< UDP port for all endpoints.
-static uint8_t  operr;  ///< Process exit policy on receiving error.
-static uint8_t  opraw;  ///< Output received datagrams in raw binary format.
-static uint8_t  opunb;  ///< Turn off buffering on the output stream.
-static uint8_t  opnlvl; ///< Notification verbosity level.
-static uint8_t  opncol; ///< Notification coloring policy.
+static uint64_t op_buf;  ///< Socket receive buffer size in bytes.
+static uint64_t op_sid;  ///< Session ID filter of received datagrams.
+static uint64_t op_off;  ///< Sequence number offset.
+static uint64_t op_port; ///< UDP port for all endpoints.
+static uint8_t  op_err;  ///< Process exit policy on receiving error.
+static uint8_t  op_raw;  ///< Output received datagrams in raw binary format.
+static uint8_t  op_unb;  ///< Turn off buffering on the output stream.
+static uint8_t  op_nlvl; ///< Notification verbosity level.
+static uint8_t  op_ncol; ///< Notification coloring policy.
 
 // Signal and event management.
 #if defined(__linux__)
@@ -118,28 +118,28 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   int opt;
 
   // Set optional arguments to sensible defaults.
-  opbuf  = DEF_BUFFER_SIZE;
-  opsid  = DEF_SESSION_ID;
-  opoff  = DEF_OFFSET;
-  opport = MBEAT_PORT;
-  operr  = DEF_ERROR;
-  opraw  = DEF_RAW_OUTPUT;
-  opunb  = DEF_UNBUFFERED;
-  opnlvl = nlvl = DEF_NOTIFY_LEVEL;
-  opncol = ncol = DEF_NOTIFY_COLOR;
+  op_buf  = DEF_BUFFER_SIZE;
+  op_sid  = DEF_SESSION_ID;
+  op_off  = DEF_OFFSET;
+  op_port = MBEAT_PORT;
+  op_err  = DEF_ERROR;
+  op_raw  = DEF_RAW_OUTPUT;
+  op_unb  = DEF_UNBUFFERED;
+  op_nlvl = nlvl = DEF_NOTIFY_LEVEL;
+  op_ncol = ncol = DEF_NOTIFY_COLOR;
 
   while ((opt = getopt(argc, argv, "b:e:hno:p:rs:uv")) != -1) {
     switch (opt) {
 
       // Receive buffer size.
       case 'b':
-        if (parse_uint64(&opbuf, optarg, 0, UINT64_MAX) == 0)
+        if (parse_uint64(&op_buf, optarg, 0, UINT64_MAX) == 0)
           return false;
         break;
 
       // Process exit on receiving error.
       case 'e':
-        operr = 1;
+        op_err = 1;
         break;
 
       // Usage information.
@@ -149,41 +149,41 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 
       // Turn off the notification coloring.
       case 'n':
-        opncol = 0;
+        op_ncol = 0;
         break;
 
       // Sequence number offset.
       case 'o':
-        if (parse_uint64(&opoff, optarg, 1, UINT64_MAX) == 0)
+        if (parse_uint64(&op_off, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
       // UDP port for all endpoints.
       case 'p':
-        if (parse_uint64(&opport, optarg, 0, 65535) == 0)
+        if (parse_uint64(&op_port, optarg, 0, 65535) == 0)
           return false;
         break;
 
       // Raw binary output option.
       case 'r':
-        opraw = 1;
+        op_raw = 1;
         break;
 
       // Session ID of the current run.
       case 's':
-        if (parse_uint64(&opsid, optarg, 1, UINT64_MAX) == 0)
+        if (parse_uint64(&op_sid, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
       // Unbuffered output option.
       case 'u':
-        opunb = 1;
+        op_unb = 1;
         break;
 
       // Logging verbosity level.
       case 'v':
-        if (opnlvl < NL_TRACE)
-          opnlvl++;
+        if (op_nlvl < NL_TRACE)
+          op_nlvl++;
         break;
 
       // Unknown option.
@@ -200,8 +200,8 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   }
 
   // Set the requested global logging level threshold.
-  nlvl = opnlvl;
-  ncol = opncol;
+  nlvl = op_nlvl;
+  ncol = op_ncol;
 
   *ep_cnt = argc - optind;
   *ep_idx = optind;
@@ -242,8 +242,8 @@ create_sockets(void)
       notify(NL_WARN, true, "Unable to request Time-To-Live information");
 
     // Set the socket receive buffer size to the requested value.
-    if (opbuf != 0) {
-      buf_size = (int)opbuf;
+    if (op_buf != 0) {
+      buf_size = (int)op_buf;
       if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_RCVBUF,
                      &buf_size, sizeof(buf_size)) == -1) {
         notify(NL_ERROR, true,
@@ -254,13 +254,13 @@ create_sockets(void)
 
     mcast_str = inet_ntoa(ep->ep_maddr);
     addr.sin_family = AF_INET;
-    addr.sin_port   = htons((uint16_t)opport);
+    addr.sin_port   = htons((uint16_t)op_port);
     addr.sin_addr   = ep->ep_maddr;
 
     // Bind the socket to the multicast group.
     if (bind(ep->ep_sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
       notify(NL_ERROR, true, "Unable to bind to address %s and port %" PRIu64,
-             mcast_str, opport);
+             mcast_str, op_port);
       return false;
     }
 
@@ -501,20 +501,20 @@ print_payload(payload* pl, const endpoint* ep, const int ttl)
   struct timespec tv;
 
   // Filter out non-matching session IDs.
-  if (opsid != 0 && opsid != pl->pl_sid)
+  if (op_sid != 0 && op_sid != pl->pl_sid)
     return;
 
   // Filter out payloads below the offset threshold.
-  if (opoff > pl->pl_snum)
+  if (op_off > pl->pl_snum)
     return;
 
   // Apply the sequence number offset.
-  (*pl).pl_snum -= opoff;
+  (*pl).pl_snum -= op_off;
 
   clock_gettime(CLOCK_REALTIME, &tv);
 
   // Perform the user-selected type of output.
-  if (opraw)
+  if (op_raw)
     print_payload_raw(pl, ep, &tv, ttl);
   else
     print_payload_csv(pl, ep, &tv, ttl);
@@ -584,7 +584,7 @@ handle_event(endpoint* ep)
   char cdata[128];
 
   // Prepare the address for the ingress loop.
-  addr.sin_port   = htons((uint16_t)opport);
+  addr.sin_port   = htons((uint16_t)op_port);
   addr.sin_family = AF_INET;
 
   // Loop through all available datagrams on the socket.
@@ -609,11 +609,11 @@ handle_event(endpoint* ep)
         break;
 
       // Otherwise register the error with the user.
-      notify(operr ? NL_ERROR : NL_WARN, true,
+      notify(op_err ? NL_ERROR : NL_WARN, true,
              "Unable to receive datagram on interface %s "
              "from multicast group %s", ep->ep_iname, inet_ntoa(ep->ep_maddr));
 
-      if (operr)
+      if (op_err)
         return false;
     }
 
@@ -671,7 +671,7 @@ receive_datagrams(void)
   notify(NL_DEBUG, false, "Process ID is %" PRIiMAX, (intmax_t)getpid());
 
   // Print the CSV header.
-  if (!opraw)
+  if (!op_raw)
     printf("SID,SeqNum,SeqLen,McastAddr,McastPort,SrcTTL,DstTTL,PubIf,PubHost,"
            "SubIf,SubHost,TimeDep,TimeArr\n");
 
@@ -753,7 +753,7 @@ receive_datagrams(void)
 static void 
 disable_buffering(void)
 {
-  if (opunb == 0)
+  if (op_unb == 0)
     return;
 
   notify(NL_DEBUG, false, "Disabling stdio buffering");

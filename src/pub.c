@@ -42,17 +42,17 @@
 #define DEF_NOTIFY_COLOR          1 // Colors in the notification output.
 
 // Command-line options.
-static uint64_t opbuf;  ///< Socket send buffer size in bytes.
-static uint64_t opcnt;  ///< Number of publishing rounds.
-static uint64_t opival; ///< Wait time between publishing rounds.
-static uint64_t opttl;  ///< Time-To-Live for published datagrams.
-static uint64_t opoff;  ///< Offset of published payload sequence numbers.
-static uint64_t opsid;  ///< Internal session ID of the current process.
-static uint64_t opport; ///< UDP port for all endpoints.
-static uint8_t  operr;  ///< Process exit policy on publishing error.
-static uint8_t  oploop; ///< Datagram looping policy on local host.
-static uint8_t  opnlvl; ///< Notification verbosity level.
-static uint8_t  opncol; ///< Notification coloring policy.
+static uint64_t op_buf;  ///< Socket send buffer size in bytes.
+static uint64_t op_cnt;  ///< Number of publishing rounds.
+static uint64_t op_ival; ///< Wait time between publishing rounds.
+static uint64_t op_ttl;  ///< Time-To-Live for published datagrams.
+static uint64_t op_off;  ///< Offset of published payload sequence numbers.
+static uint64_t op_sid;  ///< Internal session ID of the current process.
+static uint64_t op_port; ///< UDP port for all endpoints.
+static uint8_t  op_err;  ///< Process exit policy on publishing error.
+static uint8_t  op_loop; ///< Datagram looping policy on local host.
+static uint8_t  op_nlvl; ///< Notification verbosity level.
+static uint8_t  op_ncol; ///< Notification coloring policy.
 
 /// Print the utility usage information to the standard output.
 static void
@@ -124,36 +124,36 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   int opt;
 
   // Set optional arguments to sensible defaults.
-  opbuf  = DEF_BUFFER_SIZE;
-  opcnt  = DEF_COUNT;
-  opival = DEF_INTERVAL;
-  opttl  = DEF_TIME_TO_LIVE;
-  opoff  = DEF_OFFSET;
-  operr  = DEF_ERROR;
-  oploop = DEF_LOOP;
-  opport = MBEAT_PORT;
-  opnlvl = nlvl = DEF_NOTIFY_LEVEL;
-  opncol = ncol = DEF_NOTIFY_COLOR;
-  opsid  = generate_sid();
+  op_buf  = DEF_BUFFER_SIZE;
+  op_cnt  = DEF_COUNT;
+  op_ival = DEF_INTERVAL;
+  op_ttl  = DEF_TIME_TO_LIVE;
+  op_off  = DEF_OFFSET;
+  op_err  = DEF_ERROR;
+  op_loop = DEF_LOOP;
+  op_port = MBEAT_PORT;
+  op_nlvl = nlvl = DEF_NOTIFY_LEVEL;
+  op_ncol = ncol = DEF_NOTIFY_COLOR;
+  op_sid  = generate_sid();
 
   while ((opt = getopt(argc, argv, "b:c:ehi:lno:p:s:t:v")) != -1) {
     switch (opt) {
 
       // Send buffer size.
       case 'b':
-        if (parse_uint64(&opbuf, optarg, 0, UINT64_MAX) == 0)
+        if (parse_uint64(&op_buf, optarg, 0, UINT64_MAX) == 0)
           return false;
         break;
 
       // Number of published datagrams.
       case 'c':
-        if (parse_uint64(&opcnt, optarg, 1, UINT64_MAX) == 0)
+        if (parse_uint64(&op_cnt, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
       // Process exit on publish error.
       case 'e':
-        operr = 1;
+        op_err = 1;
         break;
 
       // Usage information.
@@ -163,48 +163,48 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 
       // Wait interval between datagrams in milliseconds.
       case 'i':
-        if (parse_duration(&opival, optarg) == 0)
+        if (parse_duration(&op_ival, optarg) == 0)
           return false;
         break;
 
       // Enable the datagram looping on localhost.
       case 'l':
-        oploop = 1;
+        op_loop = 1;
         break;
 
       // Turn off the notification coloring.
       case 'n':
-        opncol = 0;
+        op_ncol = 0;
         break;
 
       // Offset for published payloads.
       case 'o':
-        if (parse_uint64(&opoff, optarg, 0, UINT64_MAX) == 0)
+        if (parse_uint64(&op_off, optarg, 0, UINT64_MAX) == 0)
           return false;
         break;
 
       // UDP port for all endpoints.
       case 'p':
-        if (parse_uint64(&opport, optarg, 0, 65535) == 0)
+        if (parse_uint64(&op_port, optarg, 0, 65535) == 0)
           return false;
         break;
 
       // Session ID of the current run.
       case 's':
-        if (parse_uint64(&opsid, optarg, 1, UINT64_MAX) == 0)
+        if (parse_uint64(&op_sid, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
       // Time-To-Live for published datagrams.
       case 't':
-        if (parse_uint64(&opttl, optarg, 0, 255) == 0)
+        if (parse_uint64(&op_ttl, optarg, 0, 255) == 0)
           return false;
         break;
 
       // Logging verbosity level.
       case 'v':
-        if (opnlvl < NL_TRACE)
-          opnlvl++;
+        if (op_nlvl < NL_TRACE)
+          op_nlvl++;
         break;
 
       // Unknown option.
@@ -221,8 +221,8 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   }
 
   // Set the requested global logging level threshold.
-  nlvl = opnlvl;
-  ncol = opncol;
+  nlvl = op_nlvl;
+  ncol = op_ncol;
 
   *ep_cnt = argc - optind;
   *ep_idx = optind;
@@ -263,8 +263,8 @@ create_sockets(endpoint* eps)
     }
 
     // Set the socket send buffer size to the requested value.
-    if (opbuf != 0) {
-      buf_size = (int)opbuf;
+    if (op_buf != 0) {
+      buf_size = (int)op_buf;
       if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_SNDBUF,
                      &buf_size, sizeof(buf_size)) == -1) {
         notify(NL_ERROR, true,
@@ -283,15 +283,15 @@ create_sockets(endpoint* eps)
 
     // Set the datagram looping policy.
     if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_MULTICAST_LOOP,
-                   &oploop, sizeof(oploop)) == -1) {
+                   &op_loop, sizeof(op_loop)) == -1) {
       notify(NL_ERROR, true,
              "Unable to turn %s the localhost datagram delivery",
-             oploop ? "on" : "off");
+             op_loop ? "on" : "off");
       return false;
     }
 
     // Adjust the Time-To-Live setting to reach farther networks.
-    ttl_set = (uint8_t)opttl;
+    ttl_set = (uint8_t)op_ttl;
     if (setsockopt(ep->ep_sock, IPPROTO_IP, IP_MULTICAST_TTL,
                    &ttl_set, sizeof(ttl_set)) == -1) {
       notify(NL_ERROR, true,
@@ -317,12 +317,12 @@ fill_payload(payload* pl, const endpoint* ep, const uint32_t snum)
 
   pl->pl_magic = htonl(MBEAT_PAYLOAD_MAGIC);
   pl->pl_fver  = MBEAT_PAYLOAD_VERSION;
-  pl->pl_ttl   = opttl;
-  pl->pl_mport = htons(opport);
+  pl->pl_ttl   = op_ttl;
+  pl->pl_mport = htons(op_port);
   pl->pl_maddr = htonl(ep->ep_maddr.s_addr);
-  pl->pl_sid   = htonll(opsid);
+  pl->pl_sid   = htonll(op_sid);
   pl->pl_snum  = htonll(snum);
-  pl->pl_slen  = htonll(opcnt);
+  pl->pl_slen  = htonll(op_cnt);
   memcpy(pl->pl_iname, ep->ep_iname, sizeof(pl->pl_iname));
   memcpy(pl->pl_hname, hname, sizeof(pl->pl_hname));
 
@@ -349,26 +349,26 @@ publish_datagrams(endpoint* eps)
 
   notify(NL_DEBUG, false, "Process ID is %" PRIiMAX, (intmax_t)getpid());
   notify(NL_DEBUG, false, "Hostname is %s", hname);
-  notify(NL_DEBUG, false, "UDP port is %" PRIu64, opport);
-  notify(NL_DEBUG, false, "Session ID is %" PRIu64, opsid);
-  notify(NL_DEBUG, false, "Time-To-Live is %" PRIu64, opttl);
+  notify(NL_DEBUG, false, "UDP port is %" PRIu64, op_port);
+  notify(NL_DEBUG, false, "Session ID is %" PRIu64, op_sid);
+  notify(NL_DEBUG, false, "Time-To-Live is %" PRIu64, op_ttl);
 
   notify(NL_INFO, false, "Starting to publish %" PRIu64 " datagram%s",
-         opcnt, (opcnt > 1 ? "s" : ""));
+         op_cnt, (op_cnt > 1 ? "s" : ""));
 
-  convert_nanos(&ts, opival);
+  convert_nanos(&ts, op_ival);
 
   // Prepare the address structure.
-  addr.sin_port   = htons((uint16_t)opport);
+  addr.sin_port   = htons((uint16_t)op_port);
   addr.sin_family = AF_INET;
 
   // Publish the requested number of datagrams.
-  for (c = 0; c < opcnt; c++) {
+  for (c = 0; c < op_cnt; c++) {
     notify(NL_DEBUG, false, "Round %" PRIu64 "/%" PRIu64 " of datagrams",
-           c + 1 + opoff, opcnt + opoff);
+           c + 1 + op_off, op_cnt + op_off);
 
     for (e = eps; e != NULL; e = e->ep_next) {
-      fill_payload(&pl, e, c + opoff);
+      fill_payload(&pl, e, c + op_off);
 
       // Set the multicast address.
       addr.sin_addr.s_addr = e->ep_maddr.s_addr;
@@ -392,18 +392,18 @@ publish_datagrams(endpoint* eps)
 
       ret = sendmsg(e->ep_sock, &msg, MSG_DONTWAIT);
       if (ret == 0) {
-        notify(operr ? NL_ERROR : NL_WARN, true,
+        notify(op_err ? NL_ERROR : NL_WARN, true,
                "Unable to publish datagram from interface %s to "
                "multicast group %s", e->ep_iname, inet_ntoa(e->ep_maddr));
 
-        if (operr)
+        if (op_err)
           return false;
       }
     }
 
     // Do not sleep after the last round of datagrams.
-    if (opival > 0 && c != (opcnt - 1)) {
-      notify(NL_TRACE, false, "Sleeping for %" PRIu64 " nanoseconds", opival);
+    if (op_ival > 0 && c != (op_cnt - 1)) {
+      notify(NL_TRACE, false, "Sleeping for %" PRIu64 " nanoseconds", op_ival);
       nanosleep(&ts, NULL);
     }
   }
