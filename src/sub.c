@@ -363,12 +363,30 @@ create_signal_event(void)
     struct kevent ev;
   #endif
 
-  sigemptyset(&mask);
-  sigaddset(&mask, SIGINT); // User-generated ^C interrupt.
-  sigaddset(&mask, SIGHUP); // Loss of a SSH connection.
+  // Clear the signal set.
+  if (sigemptyset(&mask) != 0) {
+    notify(NL_ERROR, true, "Unable to clear the signal set");
+    return false;
+  }
+
+  // Add the SIGINT signal to the set, to address the user-generated ^C
+  // interrupts.
+  if (sigaddset(&mask, SIGINT) != 0) {
+    notify(NL_ERROR, true, "Unable to add SIGINT to the signal set");
+    return false;
+  }
+
+  // Add the SIGHUP signal to the set, to address the loss of a SSH connection.
+  if (sigaddset(&mask, SIGHUP) != 0) {
+    notify(NL_ERROR, true, "Unable to add SIGHUP to the signal set");
+    return false;
+  }
 
   // Prevent the above signals from asynchronous handling.
-  sigprocmask(SIG_BLOCK, &mask, NULL);
+  if (sigprocmask(SIG_BLOCK, &mask, NULL) != 0) {
+    notify(NL_ERROR, true, "Unable to block signals");
+    return false;
+  }
 
   #if defined(__linux__)
     // Create a new signal file descriptor.
