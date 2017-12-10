@@ -97,7 +97,8 @@ print_usage(void)
     "  -p NUM  UDP port for all endpoints. (def=%d)\n"
     "  -r      Output the data in raw binary format.\n"
     "  -s SID  Only report datagrams with this session ID.\n"
-    "  -u      Disable output buffering.\n",
+    "  -u      Disable output buffering.\n"
+    "  -v      Increase the verbosity of the logging output.\n",
     MBEAT_VERSION_MAJOR,
     MBEAT_VERSION_MINOR,
     MBEAT_VERSION_PATCH,

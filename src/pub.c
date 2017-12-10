@@ -76,7 +76,8 @@ print_usage(void)
     "  -o OFF  Payloads start with selected sequence number offset. (def=%d)\n"
     "  -p NUM  UDP port to use for all endpoints. (def=%d)\n"
     "  -s SID  Session ID for the current run. (def=random)\n"
-    "  -t TTL  Set the Time-To-Live for all published datagrams. (def=%d)\n",
+    "  -t TTL  Set the Time-To-Live for all published datagrams. (def=%d)\n"
+    "  -v      Increase the verbosity of the logging output.\n",
     MBEAT_VERSION_MAJOR,
     MBEAT_VERSION_MINOR,
     MBEAT_VERSION_PATCH,
