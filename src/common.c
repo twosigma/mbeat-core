@@ -114,6 +114,66 @@ ntohll(const uint64_t x)
   return (uint64_t)ntohl(lo) | ((uint64_t)ntohl(hi) << 32);
 }
 
+/// Add ASCII escape sequences to highlight every substitution in a
+/// printf-formatted string.
+///
+/// @param[out] out highlighted string
+/// @param[in]  in  string
+static void
+highlight(char* out, const char* inp)
+{
+  char* pcent;
+  char* delim;
+  char* str;
+  char cpy[128];
+  char hold;
+
+  // As the input string is likely to be a compiler literal, and therefore
+  // is stored in a read-only memory, we have to make a copy of it.
+  memset(cpy, '\0', sizeof(cpy));
+  strcpy(cpy, inp);
+
+  str = cpy;
+  while (str != NULL) {
+    // Find the next substitution.
+    pcent = strchr(str, '%');
+    if (pcent != NULL) {
+      // Copy the text leading to the start of the substitution.
+      *pcent = '\0';
+      strcat(out, str);
+
+      // Append the ASCII escape code to start the highlighting.
+      strcat(out, "\x1b[1m");
+
+      // Locate the substitution's end and copy the contents.
+      *pcent = '%';
+      delim = strpbrk(pcent, "cdfghopsu");
+      if (delim != NULL) {
+        delim++;
+        hold = *delim;
+        *delim = '\0';
+      }
+      strcat(out, pcent);
+
+      // Insert the ASCII escape code to end the highlighting.
+      strcat(out, "\x1b[0m");
+
+      // Move back the space and continue.
+      if (delim != NULL) {
+        *delim = hold;
+        str = delim;
+      } else {
+        str = NULL;
+      }
+    } else {
+      // Since there are no more substitutions in the input string, copy the
+      // rest of it and finish.
+      strcat(out, str);
+      break;
+    }
+  }
+}
+
 /// Issue a notification to the standard error stream.
 ///
 /// @param[in] lvl  notification level (one of NL_*)
@@ -124,6 +184,7 @@ void
 notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
 {
   char tstr[32];
+  char hfmt[128];
   char msg[128];
   char errmsg[128];
   struct tm* tfmt;
@@ -146,9 +207,13 @@ notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
   tfmt = gmtime(&traw);
   strftime(tstr, sizeof(tstr), "%F %T", tfmt);
 
+  // Prepare highlights for the message variables.
+  memset(hfmt, '\0', sizeof(hfmt));
+  highlight(hfmt, fmt);
+
   // Fill in the passed message.
   va_start(args, fmt);
-  vsprintf(msg, fmt, args);
+  vsprintf(msg, hfmt, args);
   va_end(args);
 
   // Obtain the errno message.
