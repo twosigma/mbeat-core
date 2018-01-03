@@ -44,6 +44,7 @@
 
 // Default values for optional arguments.
 #define DEF_BUFFER_SIZE  0 // Zero denotes the system default.
+#define DEF_PRECISION    3 // Three decimal digits of time precision.
 #define DEF_SESSION_ID   0 // Zero denotes no session ID filtering.
 #define DEF_OFFSET       0 // Sequence numbers have no offset by default.
 #define DEF_ERROR        0 // Do not stop the process on receiving error.
@@ -54,6 +55,7 @@
 
 // Command-line options.
 static uint64_t op_buf;  ///< Socket receive buffer size in bytes.
+static uint64_t op_prec; ///< Decimal precision of time-reporting.
 static uint64_t op_sid;  ///< Session ID filter of received datagrams.
 static uint64_t op_off;  ///< Sequence number offset.
 static uint64_t op_port; ///< UDP port for all endpoints.
@@ -91,6 +93,7 @@ print_usage(void)
     "Options:\n"
     "  -b BSZ  Receive buffer size in bytes.\n"
     "  -e      Stop the process on receiving error.\n"
+    "  -f PRE  Decimal precision of the time reports. (def=%d)\n"
     "  -h      Print this help message.\n"
     "  -n      Turn off colors in logging messages.\n"
     "  -o OFF  Ignore payloads with lesser sequence number. (def=%d)\n"
@@ -102,6 +105,7 @@ print_usage(void)
     MBEAT_VERSION_MAJOR,
     MBEAT_VERSION_MINOR,
     MBEAT_VERSION_PATCH,
+    DEF_PRECISION,
     DEF_OFFSET,
     MBEAT_PORT);
 }
@@ -120,6 +124,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 
   // Set optional arguments to sensible defaults.
   op_buf  = DEF_BUFFER_SIZE;
+  op_prec = DEF_PRECISION;
   op_sid  = DEF_SESSION_ID;
   op_off  = DEF_OFFSET;
   op_port = MBEAT_PORT;
@@ -129,7 +134,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   op_nlvl = nlvl = DEF_NOTIFY_LEVEL;
   op_ncol = ncol = DEF_NOTIFY_COLOR;
 
-  while ((opt = getopt(argc, argv, "b:e:hno:p:rs:uv")) != -1) {
+  while ((opt = getopt(argc, argv, "b:e:f:hno:p:rs:uv")) != -1) {
     switch (opt) {
 
       // Receive buffer size.
@@ -141,6 +146,13 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
       // Process exit on receiving error.
       case 'e':
         op_err = 1;
+        break;
+
+      // Decimal precision of the time reporting. The maximum allowed value is
+      // 9, as there are only 1,000,000,000 nanoseconds in a second.
+      case 'f':
+        if (parse_uint64(&op_prec, optarg, 0, 9) == 0)
+          return false;
         break;
 
       // Usage information.
@@ -437,9 +449,11 @@ print_payload_csv(const payload* pl,
                   const struct timespec* tv,
                   const int ttl)
 {
+  static const uint32_t pow10[9] = {1, 10, 100, 1000, 10000, 100000,
+    1000000, 10000000, 100000000};
   char ttl_str[8];
-  uint32_t dep;
-  uint32_t arr;
+  char dep_str[32];
+  char arr_str[32];
 
   // Destination Time-To-Live string, depending on it's availability.
   if (0 <= ttl && ttl <= 255)
@@ -447,9 +461,14 @@ print_payload_csv(const payload* pl,
   else
     strcpy(ttl_str, "N/A");
 
-  // Round the nanosecond time parts of departure and arrival to 3 digits.
-  dep = pl->pl_nsec / (uint32_t)1000000;
-  arr = (uint32_t)tv->tv_nsec / (uint32_t)1000000;
+  // Round the sub-second time part to the selected precision.
+  memset(dep_str, '\0', sizeof(dep_str));
+  memset(arr_str, '\0', sizeof(arr_str));
+
+  if (op_prec > 0) {
+    sprintf(dep_str, ".%" PRIu32,           pl->pl_nsec / pow10[9 - op_prec]);
+    sprintf(arr_str, ".%" PRIu32, (uint32_t)tv->tv_nsec / pow10[9 - op_prec]);
+  }
 
   printf("%" PRIu64 ","                 // SID
          "%" PRIu64 ","                 // SeqNum
@@ -462,8 +481,8 @@ print_payload_csv(const payload* pl,
          "%.*s,"                        // PubHost
          "%.*s,"                        // SubIf
          "%.*s,"                        // SubHost
-         "%" PRIu64 ".%.3" PRIu32 ","   // TimeOfDep
-         "%" PRIu64 ".%.3" PRIu32 "\n", // TimeOfArr
+         "%" PRIu64 "%s,"   // TimeOfDep
+         "%" PRIu64 "%s\n", // TimeOfArr
     pl->pl_sid,
     pl->pl_snum,
     pl->pl_slen,
@@ -476,9 +495,9 @@ print_payload_csv(const payload* pl,
     (int)sizeof(ep->ep_iname), ep->ep_iname,
     (int)sizeof(hname), hname,
     pl->pl_sec,
-    dep,
+    dep_str,
     (uint64_t)tv->tv_sec,
-    arr);
+    arr_str);
 }
 
 /// Print the payload content in the raw binary format (big-endian) to the
