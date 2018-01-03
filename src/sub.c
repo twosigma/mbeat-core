@@ -470,17 +470,17 @@ print_payload_csv(const payload* pl,
     sprintf(arr_str, ".%" PRIu32, (uint32_t)tv->tv_nsec / pow10[9 - op_prec]);
   }
 
-  printf("%" PRIu64 ","                 // SID
-         "%" PRIu64 ","                 // SeqNum
-         "%" PRIu64 ","                 // SeqLen
-         "%s,"                          // McastAddr
-         "%" PRIu16 ","                 // McastPort
-         "%" PRIu8  ","                 // SrcTTL
-         "%s,"                          // DstTTL
-         "%.*s,"                        // PubIf
-         "%.*s,"                        // PubHost
-         "%.*s,"                        // SubIf
-         "%.*s,"                        // SubHost
+  printf("%" PRIu64 ","     // SID
+         "%" PRIu64 ","     // SeqNum
+         "%" PRIu64 ","     // SeqLen
+         "%s,"              // McastAddr
+         "%" PRIu16 ","     // McastPort
+         "%" PRIu8  ","     // SrcTTL
+         "%s,"              // DstTTL
+         "%.*s,"            // PubIf
+         "%.*s,"            // PubHost
+         "%.*s,"            // SubIf
+         "%.*s,"            // SubHost
          "%" PRIu64 "%s,"   // TimeOfDep
          "%" PRIu64 "%s\n", // TimeOfArr
     pl->pl_sid,
