@@ -1,4 +1,4 @@
-// Copyright (c) 2017 Two Sigma Open Source, LLC.
+// Copyright (c) 2017-2018 Two Sigma Open Source, LLC.
 // All Rights Reserved
 //
 // Distributed under the terms of the 2-clause BSD License. The full
