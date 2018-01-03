@@ -1,3 +1,9 @@
+// Copyright (c) 2017-2018 Two Sigma Open Source, LLC.
+// All Rights Reserved
+//
+// Distributed under the terms of the 2-clause BSD License. The full
+// license is in the file LICENSE, distributed as part of this software.
+
 #include <sys/types.h>
 #include <sys/socket.h>
 
