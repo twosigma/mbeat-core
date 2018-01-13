@@ -1,6 +1,6 @@
-# mbeat
+# mbeat-core
 
-[![Build Status](https://travis-ci.org/twosigma/mbeat.svg?branch=master)](https://travis-ci.org/twosigma/mbeat)
+[![Build Status](https://travis-ci.org/twosigma/mbeat-core.svg?branch=master)](https://travis-ci.org/twosigma/mbeat-core)
 
 Multicast heartbeat - `mbeat` - is a set of command-line utilities perform
 testing and debugging multicast network configurations by transmitting
@@ -97,7 +97,7 @@ include detailed analysis built on to of the subscriber's output,
 orchestration of large-scale tests and daemonization of the components.
 
 ## License
-The `mbeat` project is licensed under the terms of the [2-cause BSD
+The `mbeat-core` project is licensed under the terms of the [2-cause BSD
 license](LICENSE).
 
 ## Authors & maintainers
