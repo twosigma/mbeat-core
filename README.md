@@ -102,3 +102,6 @@ license](LICENSE).
 
 ## Authors & maintainers
 Daniel Lovasko <dlovasko@twosigma.com>
+
+## Acknowledgement
+The project was initially developed in collaboration with Reenen Kroukamp.
