@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <err.h>
+#include <inttypes.h>
 
 #include "common.h"
 #include "types.h"
@@ -188,7 +189,7 @@ notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
   char msg[128];
   char errmsg[128];
   struct tm* tfmt;
-  time_t traw;
+  struct timespec tspec;
   va_list args;
   int save;
   static const char* lname[] = {"ERROR", " WARN", " INFO", "DEBUG", "TRACE"};
@@ -203,9 +204,9 @@ notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
   save = errno;
 
   // Obtain and format the current time in GMT.
-  traw = time(NULL);
-  tfmt = gmtime(&traw);
-  strftime(tstr, sizeof(tstr), "%F %T", tfmt);
+  clock_gettime(CLOCK_REALTIME, &tspec);
+  tfmt = gmtime(&tspec.tv_sec);
+  strftime(tstr, sizeof(tstr), "%T", tfmt);
 
   // Prepare highlights for the message variables.
   memset(hfmt, '\0', sizeof(hfmt));
@@ -229,5 +230,6 @@ notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
     memcpy(lstr, lname[lvl], strlen(lname[lvl]));
 
   // Print the final log line.
-  (void)fprintf(stderr, "[%s] %s - %s%s\n", tstr, lstr, msg, errmsg);
+  (void)fprintf(stderr, "[%s.%" PRIu32 "] %s - %s%s\n",
+                tstr, (uint32_t)tspec.tv_nsec / 1000000, lstr, msg, errmsg);
 }
