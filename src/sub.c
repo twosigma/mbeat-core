@@ -9,15 +9,6 @@
 #include <sys/time.h>
 #include <sys/uio.h>
 
-#if defined(__linux__)
-  #include <sys/epoll.h>
-  #include <sys/signalfd.h>
-#elif defined(__FreeBSD__)
-  #include <sys/event.h>
-#else
-  #include <sys/select.h>
-#endif
-
 #include <net/if.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -40,6 +31,7 @@
 #include "types.h"
 #include "common.h"
 #include "parse.h"
+#include "sub.h"
 
 
 // Default values for optional arguments.
@@ -64,17 +56,6 @@ static uint8_t  op_raw;  ///< Output received datagrams in raw binary format.
 static uint8_t  op_unb;  ///< Turn off buffering on the output stream.
 static uint8_t  op_nlvl; ///< Notification verbosity level.
 static uint8_t  op_ncol; ///< Notification coloring policy.
-
-// Signal and event management.
-#if defined(__linux__)
-  static int eqfd;
-  static int sigfd;
-#elif defined(__FreeBSD__)
-  static int eqfd;
-#else
-  static fd_set eqfd;
-  static int nfds;
-#endif
 
 // Object lists.
 static endpoint* eps;
@@ -236,6 +217,10 @@ create_sockets(void)
 
   enable = 1;
   for (ep = eps; ep != NULL ; ep = ep->ep_next) {
+    notify(NL_TRACE, false,
+           "Creating endpoint on interface %s for multicast group %s",
+           ep->ep_iname, inet_ntoa(ep->ep_maddr));
+
     ep->ep_sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (ep->ep_sock == -1) {
       notify(NL_ERROR, true, "Unable to create socket");
@@ -290,149 +275,16 @@ create_sockets(void)
   return true;
 }
 
-/// Create the event queue.
-/// @return status code
-static bool
-create_event_queue(void)
-{
-  #if defined(__linux__)
-    eqfd = epoll_create(ENDPOINT_MAX);
-    notify(NL_DEBUG, false, "Using the epoll backend");
-  #elif defined(__FreeBSD__)
-    eqfd = kqueue();
-    notify(NL_DEBUG, false, "Using the kqueue backend");
-  #else
-    FD_ZERO(&eqfd);
-    nfds = 0;
-    notify(NL_DEBUG, false, "Using the pselect backend");
-  #endif
-
-  #if defined(__linux__) || defined(__FreeBSD__)
-    if (eqfd < 0) {
-      notify(NL_ERROR, true, "Unable to create event queue");
-      return false;
-    }
-  #endif
-
-  return true;
-}
-
 /// Add the socket associated with each endpoint to the event queue.
 /// @return status code
 static bool
-create_socket_events(void)
+add_socket_events(void)
 {
   endpoint* ep;
 
-  #if defined(__linux__)
-    struct epoll_event ev;
-  #endif
-
-  #if defined(__FreeBSD__)
-    struct kevent ev;
-  #endif
-
-  // Add all sockets to the event queue. The auxiliary data pointer should
-  // point at the endpoint structure, so that all relevant data can be
-  // accessed when the event is triggered.
-  for (ep = eps; ep != NULL; ep = ep->ep_next) { 
-    #if defined(__linux__)
-      ev.events = EPOLLIN;
-      ev.data.ptr = ep;
-
-      if (epoll_ctl(eqfd, EPOLL_CTL_ADD, ep->ep_sock, &ev) == -1) {
-        notify(NL_ERROR, true, "Unable to add a socket to the event queue");
-        return false;
-      }
-    #elif defined(__FreeBSD__)
-      EV_SET(&ev, ep->ep_sock, EVFILT_READ, EV_ADD, 0, 0, ep);
-      if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
-        notify(NL_ERROR, true, "Unable to add a socket to the event queue");
-        return false;
-      }
-    #else
-      FD_SET(ep->ep_sock, &eqfd);
-      if (ep->ep_sock > nfds)
-        nfds = ep->ep_sock;
-    #endif
-  }
-
-  return true;
-}
-
-/// Create a new signal file descriptor and add it to the event queue.
-/// @return status code
-static bool
-create_signal_event(void)
-{
-  sigset_t mask;
-
-  #if defined(__linux__)
-    struct epoll_event ev;
-  #endif
-
-  #if defined(__FreeBSD__)
-    struct kevent ev;
-  #endif
-
-  // Clear the signal set.
-  if (sigemptyset(&mask) != 0) {
-    notify(NL_ERROR, true, "Unable to clear the signal set");
-    return false;
-  }
-
-  // Add the SIGINT signal to the set, to address the user-generated ^C
-  // interrupts.
-  if (sigaddset(&mask, SIGINT) != 0) {
-    notify(NL_ERROR, true, "Unable to add SIGINT to the signal set");
-    return false;
-  }
-
-  // Add the SIGHUP signal to the set, to address the loss of a SSH connection.
-  if (sigaddset(&mask, SIGHUP) != 0) {
-    notify(NL_ERROR, true, "Unable to add SIGHUP to the signal set");
-    return false;
-  }
-
-  // Prevent the above signals from asynchronous handling.
-  if (sigprocmask(SIG_BLOCK, &mask, NULL) != 0) {
-    notify(NL_ERROR, true, "Unable to block signals");
-    return false;
-  }
-
-  #if defined(__linux__)
-    // Create a new signal file descriptor.
-    sigfd = signalfd(-1, &mask, 0);
-    if (sigfd == -1) {
-      notify(NL_ERROR, true, "Unable to create signal file descriptor");
+  for (ep = eps; ep != NULL; ep = ep->ep_next)
+    if (add_socket_event(ep) == false)
       return false;
-    }
-
-    // Add the signal file descriptor to the event queue.
-    ev.events = EPOLLIN;
-    ev.data.fd = sigfd;
-    if (epoll_ctl(eqfd, EPOLL_CTL_ADD, sigfd, &ev) == -1) {
-      notify(NL_ERROR, false,
-             "Unable to add the signal file descriptor to the event queue");
-      return false;
-    }
-  #endif
-
-  #if defined(__FreeBSD__)
-    // Add SIGINT to the event queue.
-    EV_SET(&ev, SIGINT, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
-    if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
-      notify(NL_ERROR, true, "Unable to add SIGINT to the event queue");
-      return false;
-    }
-
-    // Add SIGHUP to the event queue.
-    EV_SET(&ev, SIGHUP, EVFILT_SIGNAL, EV_ADD, 0, 0, NULL);
-    if (kevent(eqfd, &ev, 1, NULL, 0, NULL) == -1) {
-      notify(NL_ERROR, true, "Unable to add SIGHUP to the event queue");
-      return false;
-    }
-  #endif
 
   return true;
 }
@@ -610,7 +462,7 @@ retrieve_ttl(int* ttl, struct msghdr* msg)
 /// @return status code
 ///
 /// @param[in] ep endpoint
-static bool
+bool
 handle_event(endpoint* ep)
 {
   payload pl;
@@ -688,103 +540,47 @@ handle_event(endpoint* ep)
   return true;
 }
 
-/// Receive datagrams on all initialized connections.
+/// Create a signal mask that will be used to allow/block process signals.
 /// @return status code
-static bool
-receive_datagrams(void)
+///
+/// @param[out] mask signal mask
+bool
+create_signal_mask(sigset_t* mask)
 {
-  int ev_cnt;
-  int i;
+  // Clear the signal set.
+  if (sigemptyset(mask) != 0) {
+    notify(NL_ERROR, true, "Unable to clear the signal set");
+    return false;
+  }
 
-  #if defined(__linux__)
-    struct epoll_event evs[64];
-  #elif defined(__FreeBSD__)
-    struct kevent evs[64];
-  #else
-    fd_set evs;
-    int k;
-    endpoint* ep;
-  #endif
+  // Add the SIGINT signal to the set, to address the user-generated ^C
+  // interrupts.
+  if (sigaddset(mask, SIGINT) != 0) {
+    notify(NL_ERROR, true, "Unable to add %s to the signal set", "SIGINT");
+    return false;
+  }
 
-  notify(NL_DEBUG, false, "Process ID is %" PRIiMAX, (intmax_t)getpid());
-
-  // Print the CSV header.
-  if (!op_raw)
-    printf("SID,SeqNum,SeqLen,McastAddr,McastPort,SrcTTL,DstTTL,PubIf,PubHost,"
-           "SubIf,SubHost,TimeDep,TimeArr\n");
-
-  // Receive datagrams on all initialized connections.
-  while (1) {
-    notify(NL_TRACE, false, "Waiting for incoming events");
-
-    #if defined(__linux__)
-      ev_cnt = epoll_wait(eqfd, evs, 64, -1);
-    #elif defined(__FreeBSD__)
-      ev_cnt = kevent(eqfd, NULL, 0, evs, 64, NULL);
-    #else
-      memcpy(&evs, &eqfd, sizeof(eqfd));
-      for (k = 0; k < FD_SETSIZE; k++)  
-        if (FD_ISSET(k, &evs))
-          notify(NL_TRACE, false, "Socket %d is in the queue", k);
-      ev_cnt = select(nfds + 1, &evs, NULL, NULL, NULL);
-      k = 0;
-    #endif
-
-    if (ev_cnt < 0) {
-      notify(NL_ERROR, true, "Event queue reading failed");
-      return false;
-    }
-
-    notify(NL_DEBUG, false,
-           "Received %d event%s", ev_cnt, ev_cnt == 1 ? "" : "s");
-
-    // Handle each event.
-    for (i = 0; i < ev_cnt; i++) {
-      notify(NL_TRACE, false, "Round %d/%d of events", i, ev_cnt);
-      #if defined(__linux__)
-        // Handle the signal event for SIGINT and SIGHUP.
-        if (evs[i].data.fd == sigfd)
-          return true;
-
-        // Handle socket events.
-        if (!handle_event(evs[i].data.ptr))
-          return false;
-      #elif defined(__FreeBSD__)
-        // Handle the signal event for SIGINT and SIGHUP.
-        if (evs[i].filter == EVFILT_SIGNAL)
-          return true;
-
-        // Handle socket events.
-        if (!handle_event(evs[i].udata))
-          return false;
-      #else
-        // Skip to the next 
-        while (!FD_ISSET(k, &evs) && k < FD_SETSIZE)
-          k++;
-        
-        // Check if the search was exhaustive.
-        if (k == FD_SETSIZE)
-          return true;
-
-        // Find the corresponding endpoint object.
-        for (ep = eps; ep != NULL; ep = ep->ep_next)
-          if (ep->ep_sock == k)
-            break;
-
-        // Verify that a matching endpoint exists.
-        if (ep == NULL) {
-          notify(NL_WARN, false, "Unable to find endpoint with socket %d", k);
-          return false;
-        }
-
-        // Handle socket events.
-        if (!handle_event(ep))
-          return false;
-      #endif
-    }
+  // Add the SIGHUP signal to the set, to address the loss of a SSH connection.
+  if (sigaddset(mask, SIGHUP) != 0) {
+    notify(NL_ERROR, true, "Unable to add %s to the signal set", "SIGHUP");
+    return false;
   }
 
   return true;
+}
+
+/// Print the CSV header.
+static void
+print_header(void)
+{
+  // No header is printed for the raw binary output.
+  if (!op_raw)
+    return;
+
+  printf("SID,SeqNum,SeqLen,"
+         "McastAddr,McastPort,SrcTTL,DstTTL,"
+         "PubIf,PubHost,SubIf,SubHost,"
+         "TimeDep,TimeArr\n");
 }
 
 /// Disable the standard output stream buffering based on user settings.
@@ -834,15 +630,18 @@ main(int argc, char* argv[])
     return EXIT_FAILURE;
 
   // Create the socket events and add them to the event queue.
-  if (!create_socket_events())
+  if (!add_socket_events())
     return EXIT_FAILURE;
 
   // Create a signal event and add it to the event queue.
-  if (!create_signal_event())
+  if (!add_signal_events())
     return EXIT_FAILURE;
 
+  // Print the CSV header to the standard output.
+  print_header();
+
   // Start receiving datagrams.
-  if (!receive_datagrams())
+  if (!receive_events(eps))
     return EXIT_FAILURE;
 
   fflush(stdout);

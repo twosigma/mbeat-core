@@ -16,8 +16,11 @@ all: bin/mpub bin/msub
 bin/mpub: obj/pub.o obj/common.o obj/parse.o
 	$(CC) obj/pub.o obj/common.o obj/parse.o -o bin/mpub $(LDFLAGS)
 
-bin/msub: obj/sub.o obj/common.o obj/parse.o
-	$(CC) obj/sub.o obj/common.o obj/parse.o -o bin/msub $(LDFLAGS)
+bin/msub: obj/sub.o         obj/common.o    obj/parse.o      \
+          obj/sub_pselect.o obj/sub_epoll.o obj/sub_kqueue.o 
+	$(CC)   obj/sub.o         obj/common.o    obj/parse.o      \
+          obj/sub_pselect.o obj/sub_epoll.o obj/sub_kqueue.o \
+          -o bin/msub $(LDFLAGS)
 
 # object files
 obj/common.o: src/common.c
@@ -32,6 +35,16 @@ obj/pub.o: src/pub.c
 obj/sub.o: src/sub.c
 	$(CC) $(CFLAGS) -c src/sub.c -o obj/sub.o
 
+# object files (event queues)
+obj/sub_pselect.o: src/sub_pselect.c
+	$(CC) $(CFLAGS) -c src/sub_pselect.c -o obj/sub_pselect.o
+
+obj/sub_epoll.o: src/sub_epoll.c
+	$(CC) $(CFLAGS) -c src/sub_epoll.c -o obj/sub_epoll.o
+
+obj/sub_kqueue.o: src/sub_kqueue.c
+	$(CC) $(CFLAGS) -c src/sub_kqueue.c -o obj/sub_kqueue.o
+
 install:
 	install -s -m 0755 bin/mpub $(BINDIR)/mpub
 	install -s -m 0755 bin/msub $(BINDIR)/msub
@@ -43,3 +56,6 @@ clean:
 	rm -f obj/parse.o
 	rm -f obj/pub.o
 	rm -f obj/sub.o
+	rm -f obj/sub_pselect.o
+	rm -f obj/sub_epoll.o
+	rm -f obj/sub_kqueue.o
