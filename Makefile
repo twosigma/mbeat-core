@@ -17,7 +17,7 @@ bin/mpub: obj/pub.o obj/common.o obj/parse.o
 	$(CC) obj/pub.o obj/common.o obj/parse.o -o bin/mpub $(LDFLAGS)
 
 bin/msub: obj/sub.o         obj/common.o    obj/parse.o      \
-          obj/sub_pselect.o obj/sub_epoll.o obj/sub_kqueue.o 
+          obj/sub_pselect.o obj/sub_epoll.o obj/sub_kqueue.o
 	$(CC)   obj/sub.o         obj/common.o    obj/parse.o      \
           obj/sub_pselect.o obj/sub_epoll.o obj/sub_kqueue.o \
           -o bin/msub $(LDFLAGS)
