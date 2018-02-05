@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <strings.h>
 #include <errno.h>
 #include <limits.h>
 #include <ifaddrs.h>
@@ -261,12 +262,13 @@ parse_endpoints(endpoint** eps,
   return result;
 }
 
-/// Find the multiplier for the selected unit for conversion to nanoseconds.
+/// Find the multiplier for the selected time unit for conversion to
+/// nanoseconds.
 ///
 /// @param[out] mult multiplier
 /// @param[in]  unit unit abbreviation
-static void
-parse_unit(uint64_t* mult, const char* unit)
+void
+parse_time_unit(uint64_t* mult, const char* unit)
 {
   if (strcmp(unit, "ns") == 0) *mult = 1LL;
   if (strcmp(unit, "us") == 0) *mult = 1000LL;
@@ -277,13 +279,33 @@ parse_unit(uint64_t* mult, const char* unit)
   if (strcmp(unit, "d")  == 0) *mult = 1000LL * 1000 * 1000 * 60 * 60 * 24;
 }
 
+/// Find the multiplier for the selected memory unit for conversion to bytes.
+///
+/// @param[out] mult multiplier
+/// @param[in]  unit unit abbreviation
+void
+parse_memory_unit(uint64_t* mult, const char* unit)
+{
+  if (strlen(unit)           == 0) *mult = 1LL;
+  if (strcasecmp(unit, "b")  == 0) *mult = 1LL;
+  if (strcasecmp(unit, "k")  == 0) *mult = 1024LL;
+  if (strcasecmp(unit, "kb") == 0) *mult = 1024LL;
+  if (strcasecmp(unit, "m")  == 0) *mult = 1024LL * 1024;
+  if (strcasecmp(unit, "mb") == 0) *mult = 1024LL * 1024;
+  if (strcasecmp(unit, "g")  == 0) *mult = 1024LL * 1024 * 1024;
+  if (strcasecmp(unit, "gb") == 0) *mult = 1024LL * 1024 * 1024;
+}
+
 /// Parse a time duration into a number of nanoseconds.
 /// @return status code
 ///
 /// @param[out] dur duration
 /// @param[in]  inp input string
+/// @param[in]  upf unit parser function
 bool
-parse_duration(uint64_t* dur, const char* inp)
+parse_scalar(uint64_t* dur,
+             const char* inp,
+             void (*upf) (uint64_t*, const char*))
 {
   uint64_t num;
   uint64_t mult;
@@ -297,8 +319,7 @@ parse_duration(uint64_t* dur, const char* inp)
   // Separate the scalar and the unit of the duration.
   n = sscanf(inp, "%" SCNu64 "%2s%n", &num, unit, &adv);
   if (n == 0) {
-    notify(NL_ERROR, false, "Unable to parse the scalar value of "
-           "the duration");
+    notify(NL_ERROR, false, "Unable to parse the quantity in '%s'", inp);
     return false;
   }
 
@@ -309,22 +330,23 @@ parse_duration(uint64_t* dur, const char* inp)
 
   // Verify that the full input string was parsed.
   if (adv != (int)strlen(inp)) {
-    notify(NL_ERROR, false, "The duration string contains excess characters");
+    notify(NL_ERROR, false,
+           "The scalar string '%s' contains excess characters", inp);
     return false;
   }
 
   // Parse the unit of the duration value.
   mult = 0;
-  parse_unit(&mult, unit);
+  upf(&mult, unit);
   if (mult == 0) {
-    notify(NL_ERROR, false, "Unknown unit %2s of the duration", unit);
+    notify(NL_ERROR, false, "Unknown unit '%2s'", unit);
     return false;
   }
 
   // Check for overflow of the value in nanoseconds.
   x = num * mult;
   if (x / mult != num) {
-    notify(NL_ERROR, false, "Duration would overflow, maximum is %" PRIu64 
+    notify(NL_ERROR, false, "Quantity would overflow, maximum is %" PRIu64
            " nanoseconds", UINT64_MAX);
     return false;
   }

@@ -18,10 +18,16 @@ bool parse_uint64(uint64_t* out,
                   const uint64_t min,
                   const uint64_t max);
 
-bool parse_duration(uint64_t* out, const char* inp);
 bool parse_endpoints(endpoint** eps,
                      const int ep_idx,
                      char* argv[],
                      const int ep_cnt);
+
+bool parse_scalar(uint64_t* out,
+                  const char* inp,
+                  void (*upf) (uint64_t*, const char*));
+
+void parse_memory_unit(uint64_t* mult, const char* unit);
+void parse_time_unit(uint64_t* mult, const char* unit);
 
 #endif

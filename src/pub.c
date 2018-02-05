@@ -142,7 +142,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 
       // Send buffer size.
       case 'b':
-        if (parse_uint64(&op_buf, optarg, 0, UINT64_MAX) == 0)
+        if (parse_scalar(&op_buf, optarg, parse_memory_unit) == 0)
           return false;
         break;
 
@@ -164,7 +164,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 
       // Wait interval between datagrams in milliseconds.
       case 'i':
-        if (parse_duration(&op_ival, optarg) == 0)
+        if (parse_scalar(&op_ival, optarg, parse_time_unit) == 0)
           return false;
         break;
 
@@ -265,6 +265,8 @@ create_sockets(endpoint* eps)
 
     // Set the socket send buffer size to the requested value.
     if (op_buf != 0) {
+      notify(NL_TRACE, false,
+             "Setting socket send buffer to %" PRIu64 " bytes", op_buf);
       buf_size = (int)op_buf;
       if (setsockopt(ep->ep_sock, SOL_SOCKET, SO_SNDBUF,
                      &buf_size, sizeof(buf_size)) == -1) {

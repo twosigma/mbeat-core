@@ -120,7 +120,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 
       // Receive buffer size.
       case 'b':
-        if (parse_uint64(&op_buf, optarg, 0, UINT64_MAX) == 0)
+        if (parse_scalar(&op_buf, optarg, parse_memory_unit) == 0)
           return false;
         break;
 
