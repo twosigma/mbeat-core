@@ -8,6 +8,7 @@
 #define MBEAT_TYPES_H
 
 #include <stdlib.h>
+#include <netinet/in.h>
 
 
 // Limitations for payload data size.
