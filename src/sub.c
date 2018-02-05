@@ -574,7 +574,7 @@ static void
 print_header(void)
 {
   // No header is printed for the raw binary output.
-  if (!op_raw)
+  if (op_raw)
     return;
 
   printf("SID,SeqNum,SeqLen,"
