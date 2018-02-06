@@ -286,7 +286,6 @@ parse_time_unit(uint64_t* mult, const char* unit)
 void
 parse_memory_unit(uint64_t* mult, const char* unit)
 {
-  if (strlen(unit)           == 0) *mult = 1LL;
   if (strcasecmp(unit, "b")  == 0) *mult = 1LL;
   if (strcasecmp(unit, "k")  == 0) *mult = 1024LL;
   if (strcasecmp(unit, "kb") == 0) *mult = 1024LL;
