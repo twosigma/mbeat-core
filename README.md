@@ -19,13 +19,13 @@ found in the manual pages for each program.
 
 ### Publisher
 ```
-dlovasko@freebsd:~$ mpub -c10 -s100 -t32 -i1s em0=239.192.40.1
+dlovasko@freebsd:~$ mpub -c10 -k100 -t32 -i1s em0=239.192.40.1
 ```
 
 ### Subscriber
 ```
-dlovasko@linux:~$ msub -s100 eth0=239.192.40.1
-SID,SeqNum,SeqLen,McastAddr,McastPort,SrcTTL,DstTTL,PubIf,PubHost,SubIf,SubHost,TimeDep,TimeArr
+dlovasko@linux:~$ msub -k100 eth0=239.192.40.1
+Key,SeqNum,SeqLen,McastAddr,McastPort,SrcTTL,DstTTL,PubIf,PubHost,SubIf,SubHost,TimeDep,TimeArr
 100,0,10,239.192.40.1,22999,32,31,em0,freebsd,eth0,linux,1506174712.965,1506174712.965
 100,1,10,239.192.40.1,22999,32,31,em0,freebsd,eth0,linux,1506174713.971,1506174713.971
 100,2,10,239.192.40.1,22999,32,31,em0,freebsd,eth0,linux,1506174714.976,1506174714.977
@@ -69,9 +69,8 @@ payloads to a list of user-selected endpoints. Each endpoint is a tuple:
 local network interface that should be used for the communication and a
 multicast group. It is possible to select the number of sent payloads,
 time interval between them, the initial Time-To-Live value, and unique
-session ID to distinguish among multiple running `mpub` processes. The
-full list of command-line options can be found in the respective manual
-page.
+key to distinguish among multiple running `mpub` processes. The full
+list of command-line options can be found in the respective manual page.
 
 ## Subscriber
 The subscriber program `msub` is responsible to receiving diagnostic

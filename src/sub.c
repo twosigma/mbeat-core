@@ -37,7 +37,7 @@
 // Default values for optional arguments.
 #define DEF_BUFFER_SIZE  0 // Zero denotes the system default.
 #define DEF_PRECISION    3 // Three decimal digits of time precision.
-#define DEF_SESSION_ID   0 // Zero denotes no session ID filtering.
+#define DEF_KEY          0 // Zero denotes no key filtering.
 #define DEF_OFFSET       0 // Sequence numbers have no offset by default.
 #define DEF_ERROR        0 // Do not stop the process on receiving error.
 #define DEF_RAW_OUTPUT   0 // Raw binary output is disabled by default.
@@ -48,7 +48,7 @@
 // Command-line options.
 static uint64_t op_buf;  ///< Socket receive buffer size in bytes.
 static uint64_t op_prec; ///< Decimal precision of time-reporting.
-static uint64_t op_sid;  ///< Session ID filter of received datagrams.
+static uint64_t op_key;  ///< Key filter of received datagrams.
 static uint64_t op_off;  ///< Sequence number offset.
 static uint64_t op_port; ///< UDP port for all endpoints.
 static uint8_t  op_err;  ///< Process exit policy on receiving error.
@@ -76,11 +76,11 @@ print_usage(void)
     "  -e      Stop the process on receiving error.\n"
     "  -f PRE  Decimal precision of the time reports. (def=%d)\n"
     "  -h      Print this help message.\n"
+    "  -k KEY  Only report datagrams with this key.\n"
     "  -n      Turn off colors in logging messages.\n"
     "  -o OFF  Ignore payloads with lesser sequence number. (def=%d)\n"
     "  -p NUM  UDP port for all endpoints. (def=%d)\n"
     "  -r      Output the data in raw binary format.\n"
-    "  -s SID  Only report datagrams with this session ID.\n"
     "  -u      Disable output buffering.\n"
     "  -v      Increase the verbosity of the logging output.\n",
     MBEAT_VERSION_MAJOR,
@@ -106,7 +106,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   // Set optional arguments to sensible defaults.
   op_buf  = DEF_BUFFER_SIZE;
   op_prec = DEF_PRECISION;
-  op_sid  = DEF_SESSION_ID;
+  op_key  = DEF_KEY;
   op_off  = DEF_OFFSET;
   op_port = MBEAT_PORT;
   op_err  = DEF_ERROR;
@@ -115,7 +115,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   op_nlvl = nlvl = DEF_NOTIFY_LEVEL;
   op_ncol = ncol = DEF_NOTIFY_COLOR;
 
-  while ((opt = getopt(argc, argv, "b:e:f:hno:p:rs:uv")) != -1) {
+  while ((opt = getopt(argc, argv, "b:e:f:hk:no:p:ruv")) != -1) {
     switch (opt) {
 
       // Receive buffer size.
@@ -141,6 +141,12 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
         print_usage();
         return false;
 
+      // Key of the current run.
+      case 'k':
+        if (parse_uint64(&op_key, optarg, 1, UINT64_MAX) == 0)
+          return false;
+        break;
+
       // Turn off the notification coloring.
       case 'n':
         op_ncol = 0;
@@ -161,12 +167,6 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
       // Raw binary output option.
       case 'r':
         op_raw = 1;
-        break;
-
-      // Session ID of the current run.
-      case 's':
-        if (parse_uint64(&op_sid, optarg, 1, UINT64_MAX) == 0)
-          return false;
         break;
 
       // Unbuffered output option.
@@ -322,7 +322,7 @@ print_payload_csv(const payload* pl,
     sprintf(arr_str, ".%" PRIu32, (uint32_t)tv->tv_nsec / pow10[9 - op_prec]);
   }
 
-  printf("%" PRIu64 ","     // SID
+  printf("%" PRIu64 ","     // Key 
          "%" PRIu64 ","     // SeqNum
          "%" PRIu64 ","     // SeqLen
          "%s,"              // McastAddr
@@ -335,7 +335,7 @@ print_payload_csv(const payload* pl,
          "%.*s,"            // SubHost
          "%" PRIu64 "%s,"   // TimeOfDep
          "%" PRIu64 "%s\n", // TimeOfArr
-    pl->pl_sid,
+    pl->pl_key,
     pl->pl_snum,
     pl->pl_slen,
     inet_ntoa(ep->ep_maddr),
@@ -390,8 +390,8 @@ print_payload(payload* pl, const endpoint* ep, const int ttl)
 {
   struct timespec tv;
 
-  // Filter out non-matching session IDs.
-  if (op_sid != 0 && op_sid != pl->pl_sid)
+  // Filter out non-matching keys.
+  if (op_key != 0 && op_key != pl->pl_key)
     return;
 
   // Filter out payloads below the offset threshold.
@@ -419,7 +419,7 @@ convert_payload(payload* pl)
   pl->pl_magic = ntohl(pl->pl_magic);
   pl->pl_mport = ntohs(pl->pl_mport);
   pl->pl_maddr = ntohl(pl->pl_maddr);
-  pl->pl_sid   = ntohll(pl->pl_sid);
+  pl->pl_key   = ntohll(pl->pl_key);
   pl->pl_snum  = ntohll(pl->pl_snum);
   pl->pl_slen  = ntohll(pl->pl_slen);
   pl->pl_sec   = ntohll(pl->pl_sec);
@@ -577,7 +577,7 @@ print_header(void)
   if (op_raw)
     return;
 
-  printf("SID,SeqNum,SeqLen,"
+  printf("Key,SeqNum,SeqLen,"
          "McastAddr,McastPort,SrcTTL,DstTTL,"
          "PubIf,PubHost,SubIf,SubHost,"
          "TimeDep,TimeArr\n");

@@ -24,7 +24,7 @@ typedef struct _payload {
   uint32_t pl_maddr;            ///< Multicast IPv4 address.
   uint32_t pl_nsec;             ///< Time of departure - nanoseconds.
   uint64_t pl_sec;              ///< Time of departure - seconds.
-  uint64_t pl_sid;              ///< Sequence ID.
+  uint64_t pl_key;              ///< Unique key.
   uint64_t pl_snum;             ///< Sequence iteration counter.
   uint64_t pl_slen;             ///< Sequence length.
   char     pl_iname[INAME_LEN]; ///< Publisher's interface name.

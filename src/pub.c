@@ -47,7 +47,7 @@ static uint64_t op_cnt;  ///< Number of publishing rounds.
 static uint64_t op_ival; ///< Wait time between publishing rounds.
 static uint64_t op_ttl;  ///< Time-To-Live for published datagrams.
 static uint64_t op_off;  ///< Offset of published payload sequence numbers.
-static uint64_t op_sid;  ///< Internal session ID of the current process.
+static uint64_t op_key;  ///< Key of the current process.
 static uint64_t op_port; ///< UDP port for all endpoints.
 static uint8_t  op_err;  ///< Process exit policy on publishing error.
 static uint8_t  op_loop; ///< Datagram looping policy on local host.
@@ -71,11 +71,11 @@ print_usage(void)
     "  -e      Stop the process on publishing error.\n"
     "  -h      Print this help message.\n"
     "  -i DUR  Time interval between published datagrams. (def=1s)\n"
+    "  -k KEY  Key for the current run. (def=random)\n"
     "  -l      Turn on datagram looping.\n"
     "  -n      Turn off colors in logging messages.\n"
     "  -o OFF  Payloads start with selected sequence number offset. (def=%d)\n"
     "  -p NUM  UDP port to use for all endpoints. (def=%d)\n"
-    "  -s SID  Session ID for the current run. (def=random)\n"
     "  -t TTL  Set the Time-To-Live for all published datagrams. (def=%d)\n"
     "  -v      Increase the verbosity of the logging output.\n",
     MBEAT_VERSION_MAJOR,
@@ -87,29 +87,28 @@ print_usage(void)
     DEF_TIME_TO_LIVE);
 }
 
-/// Generate a random session ID.
+/// Generate a random key.
 /// @return random 64-bit unsigned integer (non-zero)
 static uint64_t
-generate_sid(void)
+generate_key(void)
 {
-  uint64_t sid;
+  uint64_t key;
 
-  // Seed the psuedo-random number generator. The generated session ID is not
-  // intended to be cryptographically safe - it is just intended to prevent
-  // publishers from the same host to share the same session ID. The only
-  // situation that this could still happen is if system PIDs loop over and
-  // cause the following equation: t1 + pid1 == t2 + pid2, which was ruled to
-  // be unlikely.
+  // Seed the psuedo-random number generator. The generated key is not intended
+  // to be cryptographically safe - it is just intended to prevent publishers
+  // from the same host to share the same key. The only situation that this
+  // could still happen is if system PIDs loop over and cause the following
+  // equation: t1 + pid1 == t2 + pid2, which was ruled to be unlikely.
   srand48(time(NULL) + getpid());
 
-  // Generate a random session key and ensure it is not a zero. The zero value
-  // is internally used to represent the state where no filtering of session
-  // IDs is performed by the subscriber process.
+  // Generate a random key and ensure it is not a zero. The zero value
+  // is internally used to represent the state where no filtering of keys 
+  // is performed by the subscriber process.
   do {
-    sid = (uint64_t)lrand48() | ((uint64_t)lrand48() << 32);
-  } while (sid == 0);
+    key = (uint64_t)lrand48() | ((uint64_t)lrand48() << 32);
+  } while (key == 0);
 
-  return sid;
+  return key;
 }
 
 /// Parse the command-line options.
@@ -135,9 +134,9 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   op_port = MBEAT_PORT;
   op_nlvl = nlvl = DEF_NOTIFY_LEVEL;
   op_ncol = ncol = DEF_NOTIFY_COLOR;
-  op_sid  = generate_sid();
+  op_key  = generate_key();
 
-  while ((opt = getopt(argc, argv, "b:c:ehi:lno:p:s:t:v")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:ehi:k:lno:p:t:v")) != -1) {
     switch (opt) {
 
       // Send buffer size.
@@ -168,6 +167,12 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
           return false;
         break;
 
+      // Key of the current run.
+      case 'k':
+        if (parse_uint64(&op_key, optarg, 1, UINT64_MAX) == 0)
+          return false;
+        break;
+
       // Enable the datagram looping on localhost.
       case 'l':
         op_loop = 1;
@@ -187,12 +192,6 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
       // UDP port for all endpoints.
       case 'p':
         if (parse_uint64(&op_port, optarg, 0, 65535) == 0)
-          return false;
-        break;
-
-      // Session ID of the current run.
-      case 's':
-        if (parse_uint64(&op_sid, optarg, 1, UINT64_MAX) == 0)
           return false;
         break;
 
@@ -323,7 +322,7 @@ fill_payload(payload* pl, const endpoint* ep, const uint32_t snum)
   pl->pl_ttl   = op_ttl;
   pl->pl_mport = htons(op_port);
   pl->pl_maddr = htonl(ep->ep_maddr.s_addr);
-  pl->pl_sid   = htonll(op_sid);
+  pl->pl_key   = htonll(op_key);
   pl->pl_snum  = htonll(snum);
   pl->pl_slen  = htonll(op_cnt);
   memcpy(pl->pl_iname, ep->ep_iname, sizeof(pl->pl_iname));
@@ -353,7 +352,7 @@ publish_datagrams(endpoint* eps)
   notify(NL_DEBUG, false, "Process ID is %" PRIiMAX, (intmax_t)getpid());
   notify(NL_DEBUG, false, "Hostname is %s", hname);
   notify(NL_DEBUG, false, "UDP port is %" PRIu64, op_port);
-  notify(NL_DEBUG, false, "Session ID is %" PRIu64, op_sid);
+  notify(NL_DEBUG, false, "Key is %" PRIu64, op_key);
   notify(NL_DEBUG, false, "Time-To-Live is %" PRIu64, op_ttl);
 
   notify(NL_INFO, false, "Starting to publish %" PRIu64 " datagram%s",

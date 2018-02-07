@@ -3,7 +3,7 @@
 .\"
 .\" Distributed under the terms of the 2-clause BSD License. The full
 .\" license is in the file LICENSE, distributed as part of this software.
-.Dd Feb 05, 2018
+.Dd Feb 07, 2018
 .Dt MBEAT 8
 .Os UNIX
 .Sh NAME
@@ -16,10 +16,10 @@
 .Op Fl e
 .Op Fl h
 .Op Fl i Ar dur
+.Op Fl k Ar key
 .Op Fl l
 .Op Fl o Ar off
 .Op Fl p Ar num
-.Op Fl s Ar sid
 .Op Fl t Ar ttl
 .Op Fl v
 .Sm off
@@ -75,6 +75,10 @@ interval defaults to
 .Em 1
 second.
 .
+.It Fl k Ar key
+Sets the key of each outgoing mbeat payload (see FLOW IDENTIFICATION). If not
+specified, a random value is generated.
+.
 .It Fl l
 Enables local delivery for published multicast datagrams.
 .
@@ -86,10 +90,6 @@ start. The default is
 .It Fl p Ar num
 Specify the UDP port of all created endpoints. The default value is
 .Em 22999 .
-.
-.It Fl s Ar sid
-Sets the session ID of each outgoing mbeat payload (see SESSION
-IDENTIFICATION). If not specified, a random value is generated.
 .
 .It Fl t Ar ttl
 Sets the Time-To-Live property of each outgoing datagram.
@@ -105,11 +105,11 @@ The positional arguments of the utility are endpoints: an ordered tuple
 consisting of local interface name, multicast group and the multicast port. It
 is possible to specify up to 83886080 endpoints.
 
-.Sh SESSION IDENTIFICATION
+.Sh FLOW IDENTIFICATION
 In order to support multiple simultaneous runs of the tool, the publisher can
-stamp the payload with a session ID - a 64-bit unsigned integer - that
-identifies the set of outgoing packets. Similarly the subscriber utility is
-able to filter out everything but a given session ID.
+stamp the payload with a key - a 64-bit unsigned integer - that identifies the
+set of outgoing packets. Similarly the subscriber utility is able to filter out
+everything but a given key.
 
 .Sh MEMORY SIZE FORMAT
 The memory size has to be specified by an unsigned integer, followed by a
@@ -169,7 +169,7 @@ time of departure nanoseconds part (4 bytes)
 .It
 time of departure UNIX timestamp (8 bytes)
 .It
-session ID (8 bytes)
+key (8 bytes)
 .It
 sequence interation counter (8 bytes)
 .It
