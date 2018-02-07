@@ -307,9 +307,9 @@ create_sockets(endpoint* eps)
 
 /// Create the datagram payload.
 ///
-/// @param[out] pl    payload
-/// @param[in]  ep    endpoint
-/// @param[in]  sid   session ID
+/// @param[out] pl   payload
+/// @param[in]  ep   endpoint
+/// @param[in]  snum sequence iterator counter
 static void
 fill_payload(payload* pl, const endpoint* ep, const uint32_t snum)
 {
