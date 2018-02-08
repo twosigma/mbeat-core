@@ -458,6 +458,40 @@ retrieve_ttl(int* ttl, struct msghdr* msg)
   return false;
 }
 
+/// Verify the payload suitability.
+/// @return decision
+///
+/// @param[in] pl  payload
+/// @param[in] nbs number of received bytes
+static bool
+verify_payload(const payload* pl, const ssize_t nbs)
+{
+  // Verify the size of the received payload.
+  if ((size_t)nbs != sizeof(pl)) {
+    notify(NL_WARN, false, "Wrong payload size, expected: %zu, got: %zd",
+           sizeof(pl), nbs);
+    return false;
+  }
+
+  // Verify the magic number of the payload.
+  if (pl->pl_magic != MBEAT_PAYLOAD_MAGIC) {
+    notify(NL_WARN, false,
+           "Payload magic number invalid, expected: %u, got: %u",
+           MBEAT_PAYLOAD_MAGIC, pl->pl_magic);
+    return false;
+  }
+
+  // Ensure that the format version is up-to-date.
+  if (pl->pl_fver != MBEAT_PAYLOAD_VERSION) {
+    notify(NL_WARN, false,
+           "Unsupported payload version, expected: %u, got: %u",
+           MBEAT_PAYLOAD_VERSION, pl->pl_fver);
+    return false;
+  }
+
+  return true;
+}
+
 /// Read all incoming datagrams associated with an endpoint.
 /// @return status code
 ///
@@ -467,7 +501,7 @@ handle_event(endpoint* ep)
 {
   payload pl;
   int ttl;
-  ssize_t nbytes;
+  ssize_t nbs;
   struct sockaddr_in addr;
   struct msghdr msg;
   struct iovec data;
@@ -492,8 +526,8 @@ handle_event(endpoint* ep)
     msg.msg_controllen = sizeof(cdata);
 
     // Read an incoming datagram.
-    nbytes = recvmsg(ep->ep_sock, &msg, MSG_TRUNC | MSG_DONTWAIT);
-    if (nbytes == -1) {
+    nbs = recvmsg(ep->ep_sock, &msg, MSG_TRUNC | MSG_DONTWAIT);
+    if (nbs == -1) {
       // Exit the reading loop if there are no more datagrams to process.
       if (errno == EAGAIN)
         break;
@@ -507,33 +541,11 @@ handle_event(endpoint* ep)
         return false;
     }
 
-    // Verify the size of the received payload.
-    if ((size_t)nbytes != sizeof(pl)) {
-      notify(NL_WARN, false, "Wrong payload size, expected: %zu, got: %zd",
-             sizeof(pl), nbytes);
+    convert_payload(&pl);
+    if (verify_payload(&pl, nbs) == false)
       continue;
-    }
 
     retrieve_ttl(&ttl, &msg);
-
-    convert_payload(&pl);
-
-    // Verify the magic number of the payload.
-    if (pl.pl_magic != MBEAT_PAYLOAD_MAGIC) {
-      notify(NL_WARN, false,
-             "Payload magic number invalid, expected: %u, got: %u",
-             MBEAT_PAYLOAD_MAGIC, pl.pl_magic);
-      continue;
-    }
-
-    // Ensure that the format version is supported.
-    if (pl.pl_fver != MBEAT_PAYLOAD_VERSION) {
-      notify(NL_WARN, false, 
-             "Unsupported payload version, expected: %u, got: %u",
-             MBEAT_PAYLOAD_VERSION, pl.pl_fver);
-      continue;
-    }
-
     print_payload(&pl, ep, ttl);
   }
 
