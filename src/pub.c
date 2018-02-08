@@ -33,7 +33,7 @@
 // Default values for optional arguments.
 #define DEF_BUFFER_SIZE           0 // Zero denotes the system default.
 #define DEF_COUNT                 5 // Number of published datagrams.
-#define DEF_INTERVAL     1000000000 // One second publishing interval.
+#define DEF_SLEEP        1000000000 // One second pause between payloads.
 #define DEF_OFFSET                0 // Payloads start at zero.
 #define DEF_TIME_TO_LIVE         32 // Time-To-Live for published datagrams.
 #define DEF_ERROR                 0 // Process exit on publishing error.
@@ -44,7 +44,7 @@
 // Command-line options.
 static uint64_t op_buf;  ///< Socket send buffer size in bytes.
 static uint64_t op_cnt;  ///< Number of publishing rounds.
-static uint64_t op_ival; ///< Wait time between publishing rounds.
+static uint64_t op_slp;  ///< Sleep duration between publishing rounds.
 static uint64_t op_ttl;  ///< Time-To-Live for published datagrams.
 static uint64_t op_off;  ///< Offset of published payload sequence numbers.
 static uint64_t op_key;  ///< Key of the current process.
@@ -70,12 +70,12 @@ print_usage(void)
     "  -c CNT  Publish exactly CNT datagrams. (def=%d)\n"
     "  -e      Stop the process on publishing error.\n"
     "  -h      Print this help message.\n"
-    "  -i DUR  Time interval between published datagrams. (def=1s)\n"
     "  -k KEY  Key for the current run. (def=random)\n"
     "  -l      Turn on datagram looping.\n"
     "  -n      Turn off colors in logging messages.\n"
     "  -o OFF  Payloads start with selected sequence number offset. (def=%d)\n"
     "  -p NUM  UDP port to use for all endpoints. (def=%d)\n"
+    "  -s DUR  Sleep duration between published datagram rounds. (def=1s)\n"
     "  -t TTL  Set the Time-To-Live for all published datagrams. (def=%d)\n"
     "  -v      Increase the verbosity of the logging output.\n",
     MBEAT_VERSION_MAJOR,
@@ -126,7 +126,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   // Set optional arguments to sensible defaults.
   op_buf  = DEF_BUFFER_SIZE;
   op_cnt  = DEF_COUNT;
-  op_ival = DEF_INTERVAL;
+  op_slp  = DEF_SLEEP;
   op_ttl  = DEF_TIME_TO_LIVE;
   op_off  = DEF_OFFSET;
   op_err  = DEF_ERROR;
@@ -136,7 +136,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   op_ncol = ncol = DEF_NOTIFY_COLOR;
   op_key  = generate_key();
 
-  while ((opt = getopt(argc, argv, "b:c:ehi:k:lno:p:t:v")) != -1) {
+  while ((opt = getopt(argc, argv, "b:c:ehk:lno:p:s:t:v")) != -1) {
     switch (opt) {
 
       // Send buffer size.
@@ -160,12 +160,6 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
       case 'h':
         print_usage();
         return false;
-
-      // Wait interval between datagrams in milliseconds.
-      case 'i':
-        if (parse_scalar(&op_ival, optarg, parse_time_unit) == 0)
-          return false;
-        break;
 
       // Key of the current run.
       case 'k':
@@ -192,6 +186,12 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
       // UDP port for all endpoints.
       case 'p':
         if (parse_uint64(&op_port, optarg, 0, 65535) == 0)
+          return false;
+        break;
+
+      // Sleep duration between publishing rounds.
+      case 's':
+        if (parse_scalar(&op_slp, optarg, parse_time_unit) == 0)
           return false;
         break;
 
@@ -358,7 +358,7 @@ publish_datagrams(endpoint* eps)
   notify(NL_INFO, false, "Starting to publish %" PRIu64 " datagram%s",
          op_cnt, (op_cnt > 1 ? "s" : ""));
 
-  convert_nanos(&ts, op_ival);
+  convert_nanos(&ts, op_slp);
 
   // Prepare the address structure.
   addr.sin_port   = htons((uint16_t)op_port);
@@ -404,8 +404,8 @@ publish_datagrams(endpoint* eps)
     }
 
     // Do not sleep after the last round of datagrams.
-    if (op_ival > 0 && c != (op_cnt - 1)) {
-      notify(NL_TRACE, false, "Sleeping for %" PRIu64 " nanoseconds", op_ival);
+    if (op_slp > 0 && c != (op_cnt - 1)) {
+      notify(NL_TRACE, false, "Sleeping for %" PRIu64 " nanoseconds", op_slp);
       nanosleep(&ts, NULL);
     }
   }

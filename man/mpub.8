@@ -15,11 +15,11 @@
 .Op Fl c Ar cnt
 .Op Fl e
 .Op Fl h
-.Op Fl i Ar dur
 .Op Fl k Ar key
 .Op Fl l
 .Op Fl o Ar off
 .Op Fl p Ar num
+.Op Fl s Ar dur
 .Op Fl t Ar ttl
 .Op Fl v
 .Sm off
@@ -68,13 +68,6 @@ If not specified, the process will only print the relevant error message.
 .It Fl h
 Prints the usage message.
 .
-.It Fl i Ar dur
-Sets the interval between outgoing datagrams per endpoint to
-the specified duration (see DURATION FORMAT). If not specified, the
-interval defaults to
-.Em 1
-second.
-.
 .It Fl k Ar key
 Sets the key of each outgoing mbeat payload (see FLOW IDENTIFICATION). If not
 specified, a random value is generated.
@@ -90,6 +83,13 @@ start. The default is
 .It Fl p Ar num
 Specify the UDP port of all created endpoints. The default value is
 .Em 22999 .
+.
+.It Fl s Ar dur
+Sets the sleep duration between outgoing datagrams per endpoint to
+the specified duration (see DURATION FORMAT). If not specified, the
+interval defaults to
+.Em 1
+second.
 .
 .It Fl t Ar ttl
 Sets the Time-To-Live property of each outgoing datagram.
