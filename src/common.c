@@ -230,6 +230,6 @@ notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
     memcpy(lstr, lname[lvl], strlen(lname[lvl]));
 
   // Print the final log line.
-  (void)fprintf(stderr, "[%s.%" PRIu32 "] %s - %s%s\n",
+  (void)fprintf(stderr, "[%s.%03" PRIu32 "] %s - %s%s\n",
                 tstr, (uint32_t)tspec.tv_nsec / 1000000, lstr, msg, errmsg);
 }
