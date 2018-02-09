@@ -210,7 +210,10 @@ notify(const uint8_t lvl, const bool perr, const char* fmt, ...)
 
   // Prepare highlights for the message variables.
   memset(hfmt, '\0', sizeof(hfmt));
-  highlight(hfmt, fmt);
+  if (ncol)
+    highlight(hfmt, fmt);
+  else
+    memcpy(hfmt, fmt, strlen(fmt));
 
   // Fill in the passed message.
   va_start(args, fmt);
