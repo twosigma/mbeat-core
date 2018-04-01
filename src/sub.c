@@ -340,8 +340,10 @@ print_payload_csv(const payload* pl,
   nsec = pl->pl_rsec % 1000000000ULL;
 
   if (op_prec > 0) {
-    sprintf(dep_str, ".%" PRIu64,                  nsec / pow10[9 - op_prec]);
-    sprintf(arr_str, ".%" PRIu32, (uint32_t)tv->tv_nsec / pow10[9 - op_prec]);
+    sprintf(dep_str, ".%0*" PRIu64, (int)op_prec,
+                             nsec / pow10[9 - op_prec]);
+    sprintf(arr_str, ".%0*" PRIu32, (int)op_prec,
+            (uint32_t)tv->tv_nsec / pow10[9 - op_prec]);
   }
 
   printf("%" PRIu64 ","     // Key 
