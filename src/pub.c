@@ -24,6 +24,7 @@
 #include <limits.h>
 #include <time.h>
 #include <err.h>
+#include <getopt.h>
 
 #include "types.h"
 #include "common.h"
@@ -66,18 +67,18 @@ print_usage(void)
     "  mpub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
 
     "Options:\n"
-    "  -b BSZ  Send buffer size in bytes.\n"
-    "  -c CNT  Publish exactly CNT datagrams. (def=%d)\n"
-    "  -e      Stop the process on publishing error.\n"
-    "  -h      Print this help message.\n"
-    "  -k KEY  Key for the current run. (def=random)\n"
-    "  -l      Turn on datagram looping.\n"
-    "  -n      Turn off colors in logging messages.\n"
-    "  -o OFF  Payloads start with selected sequence number offset. (def=%d)\n"
-    "  -p NUM  UDP port to use for all endpoints. (def=%d)\n"
-    "  -s DUR  Sleep duration between published datagram rounds. (def=1s)\n"
-    "  -t TTL  Set the Time-To-Live for all published datagrams. (def=%d)\n"
-    "  -v      Increase the verbosity of the logging output.\n",
+    "  -b, --buffer-size BSZ    Send buffer size in bytes.\n"
+    "  -c, --count CNT          Publish exactly CNT datagrams. (def=%d)\n"
+    "  -e, --exit-on-error      Stop the process on publishing error.\n"
+    "  -h, --help               Print this help message.\n"
+    "  -k, --key KEY            Key for the current run. (def=random)\n"
+    "  -l, --loopback           Turn on datagram looping.\n"
+    "  -n, --no-color           Turn off colors in logging messages.\n"
+    "  -o, --offset OFF         Payloads start with selected sequence number offset. (def=%d)\n"
+    "  -p, --port NUM           UDP port to use for all endpoints. (def=%d)\n"
+    "  -s, --sleep-time DUR     Sleep duration between published datagram rounds. (def=1s)\n"
+    "  -t, --time-to-live TTL   Set the Time-To-Live for all published datagrams. (def=%d)\n"
+    "  -v, --verbose            Increase the verbosity of the logging output.\n",
     MBEAT_VERSION_MAJOR,
     MBEAT_VERSION_MINOR,
     MBEAT_VERSION_PATCH,
@@ -122,6 +123,21 @@ static bool
 parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 {
   int opt;
+  struct option lopts[] = {
+    {"buffer-size",   required_argument, NULL, 'b'},
+    {"count",         required_argument, NULL, 'c'},
+    {"exit-on-error", no_argument,       NULL, 'e'},
+    {"help",          no_argument,       NULL, 'h'},
+    {"key",           required_argument, NULL, 'k'},
+    {"loopback",      no_argument,       NULL, 'l'},
+    {"no-color",      no_argument,       NULL, 'n'},
+    {"offset",        required_argument, NULL, 'o'},
+    {"port",          required_argument, NULL, 'p'},
+    {"sleep-time",    required_argument, NULL, 's'},
+    {"time-to-live",  required_argument, NULL, 't'},
+    {"verbose",       no_argument,       NULL, 'v'},
+    {NULL, 0, NULL, 0}
+  };
 
   // Set optional arguments to sensible defaults.
   op_buf  = DEF_BUFFER_SIZE;
@@ -136,7 +152,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   op_ncol = ncol = DEF_NOTIFY_COLOR;
   op_key  = generate_key();
 
-  while ((opt = getopt(argc, argv, "b:c:ehk:lno:p:s:t:v")) != -1) {
+  while ((opt = getopt_long(argc, argv, "b:c:ehk:lno:p:s:t:v", lopts, NULL)) != -1) {
     switch (opt) {
 
       // Send buffer size.

@@ -51,52 +51,52 @@ Multicast network address in the IPv4 family, written in the dotted quad
 .Sh OPTIONS
 The utility accepts the following command-line options:
 .Bl -tag -width Ds
-.It Fl b Ar bsz
+.It Fl b, -buffer-size Ar bsz
 Sets the socket send buffer to the specified size (see MEMORY SIZE FORMAT).
 This setting is used for all endpoints.  If not specified, the value defaults
 to the kernel default.
 .
-.It Fl c Ar cnt
+.It Fl c, -count Ar cnt
 Sets the number of outgoing datagrams per endpoint.
 If not specified, the value defaults to
 .Em 5 .
 .
-.It Fl e
+.It Fl e, -exit-on-error
 The process will terminate when the first publishing error is encountered.
 If not specified, the process will only print the relevant error message.
 .
-.It Fl h
+.It Fl h, -help
 Prints the usage message.
 .
-.It Fl k Ar key
+.It Fl k, -key Ar key
 Sets the key of each outgoing mbeat payload (see FLOW IDENTIFICATION). If not
 specified, a random value is generated.
 .
-.It Fl l
+.It Fl l, -loopback
 Enables local delivery for published multicast datagrams.
 .
-.It Fl o Ar off
+.It Fl o, -offset Ar off
 Sets the offset from which all published payload sequence numbers will
 start. The default is
 .Em 0 .
 .
-.It Fl p Ar num
+.It Fl p, -port Ar num
 Specify the UDP port of all created endpoints. The default value is
 .Em 22999 .
 .
-.It Fl s Ar dur
+.It Fl s, -sleep-time Ar dur
 Sets the sleep duration between outgoing datagrams per endpoint to
 the specified duration (see DURATION FORMAT). If not specified, the
 interval defaults to
 .Em 1
 second.
 .
-.It Fl t Ar ttl
+.It Fl t, -time-to-live Ar ttl
 Sets the Time-To-Live property of each outgoing datagram.
 If not specified, the value defaults to
 . Em 64 .
 .
-.It Fl v
+.It Fl v, -verbose
 Enables more verbose logging. Repeating this flag will turn on more
 detailed levels of logging messages: INFO, DEBUG, and TRACE.
 .El
