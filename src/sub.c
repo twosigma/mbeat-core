@@ -483,7 +483,7 @@ static bool
 verify_payload(const payload* pl, const ssize_t nbs)
 {
   // Verify the size of the received payload.
-  if ((size_t)nbs != sizeof(pl)) {
+  if ((size_t)nbs != sizeof(*pl)) {
     notify(NL_WARN, false, "Wrong payload size, expected: %zu, got: %zd",
            sizeof(pl), nbs);
     return false;
