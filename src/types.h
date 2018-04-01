@@ -22,8 +22,8 @@ typedef struct _payload {
   uint8_t  pl_ttl;              ///< Source Time-To-Live.
   uint16_t pl_mport;            ///< Multicast IPv4 port.
   uint32_t pl_maddr;            ///< Multicast IPv4 address.
-  uint32_t pl_nsec;             ///< Time of departure - nanoseconds.
-  uint64_t pl_sec;              ///< Time of departure - seconds.
+  uint32_t pl_pad;              ///< Padding (unused).
+  uint64_t pl_rsec;             ///< System time of departure (ns).
   uint64_t pl_key;              ///< Unique key.
   uint64_t pl_snum;             ///< Sequence iteration counter.
   uint64_t pl_slen;             ///< Sequence length.
@@ -31,13 +31,12 @@ typedef struct _payload {
   char     pl_hname[HNAME_LEN]; ///< Publisher's hostname.
 } payload;
 
-/// Raw binary output format (224 bytes).
+/// Raw binary output format (220 bytes).
 typedef struct _raw_output {
   payload  ro_pl;               ///< Received payload.
   char     ro_iname[INAME_LEN]; ///< Subscriber's interface name.
   char     ro_hname[HNAME_LEN]; ///< Subscriber's hostname.
-  uint64_t ro_sec;              ///< Time of arrival - seconds.
-  uint32_t ro_nsec;             ///< Time of arrival - nanoseconds.
+  uint64_t ro_rsec;             ///< System time of arrival (ns).
   uint8_t  ro_ttla;             ///< Availability of the Time-To-Live value.
   uint8_t  ro_ttl;              ///< Destination Time-To-Live value.
   uint8_t  ro_pad[2];           ///< Padding (unused).

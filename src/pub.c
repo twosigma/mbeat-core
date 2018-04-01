@@ -345,8 +345,8 @@ fill_payload(payload* pl, const endpoint* ep, const uint32_t snum)
   memcpy(pl->pl_hname, hname, sizeof(pl->pl_hname));
 
   clock_gettime(CLOCK_REALTIME, &tv);
-  pl->pl_sec   = htonll((uint64_t)tv.tv_sec);
-  pl->pl_nsec  = htonl((uint32_t)tv.tv_nsec);
+  pl->pl_rsec = htonll((uint64_t)tv.tv_nsec +
+                       (1000000000ULL * (uint64_t)tv.tv_sec));
 }
 
 /// Publish datagrams to all requested multicast groups.

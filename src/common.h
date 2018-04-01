@@ -30,7 +30,7 @@ extern char hname[HNAME_LEN];
 
 // Payload-related constants.
 #define MBEAT_PAYLOAD_MAGIC   0x6d626974
-#define MBEAT_PAYLOAD_VERSION          2
+#define MBEAT_PAYLOAD_VERSION          3
 
 // Notification levels.
 #define NL_ERROR 0 // Error.
