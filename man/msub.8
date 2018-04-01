@@ -51,29 +51,29 @@ Multicast network address in the IPv4 family, written in the dotted quad
 .Sh OPTIONS
 The utility accepts the following command-line options:
 .Bl -tag -width Ds
-.It Fl b Ar bsz
+.It Fl b, -buffer-size Ar bsz
 Sets the socket send buffer to the specified size (see MEMORY SIZE FORMAT).
 This setting is used for all endpoints.  If not specified, the value defaults
 to the kernel default.
 .
-.It Fl e
+.It Fl e, -exit-on-error
 The process will terminate when the first receiving error is encountered.
 If not specified, the process will only print the relevant error message.
 .
-.It Fl f Ar pre
+.It Fl f, -time-precision Ar pre
 Selects the sub-second decimal precision of arrival and departure timestamps.
 .
-.It Fl h
+.It Fl h, -help
 Prints the usage message.
 .
-.It Fl k Ar key
+.It Fl k, -key Ar key
 Sets the key filter on incoming mbeat payloads, so that only those payloads
 with key equal to
 .Ar key
 get printed out (see FLOW IDENTIFICATION). If not specified, all payloads
 are accepted.
 .
-.It Fl o Ar off
+.It Fl o, -offset Ar off
 Sets the sequence number offset, so that all mbeat payloads with sequence
 number lesser than
 .Ar off
@@ -82,17 +82,17 @@ are ignored. All subsequent sequence numbers are printed shifted by the
 value. The default value is
 .Em 0 .
 .
-.It Fl p Ar num
+.It Fl p, -port Ar num
 Specify the UDP port of all created endpoints. The default value is
 .Em 22999 .
 .
-.It Fl r
+.It Fl r, -raw-output
 Enables the raw binary output instead of the default CSV (see OUTPUT FORMAT).
 .
-.It Fl u
+.It Fl u, -disable-buffering
 Disables output buffering.
 .
-.It Fl v
+.It Fl v, -verbose
 Enables more verbose logging. Repeating this flag will turn on more
 detailed levels of logging messages: INFO, DEBUG, and TRACE.
 .El

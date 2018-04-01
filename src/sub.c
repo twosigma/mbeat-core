@@ -27,6 +27,7 @@
 #include <time.h>
 #include <string.h>
 #include <err.h>
+#include <getopt.h>
 
 #include "types.h"
 #include "common.h"
@@ -72,17 +73,19 @@ print_usage(void)
     "  msub [OPTIONS] iface=maddr [iface=maddr ...]\n\n"
 
     "Options:\n"
-    "  -b BSZ  Receive buffer size in bytes.\n"
-    "  -e      Stop the process on receiving error.\n"
-    "  -f PRE  Decimal precision of the time reports. (def=%d)\n"
-    "  -h      Print this help message.\n"
-    "  -k KEY  Only report datagrams with this key.\n"
-    "  -n      Turn off colors in logging messages.\n"
-    "  -o OFF  Ignore payloads with lesser sequence number. (def=%d)\n"
-    "  -p NUM  UDP port for all endpoints. (def=%d)\n"
-    "  -r      Output the data in raw binary format.\n"
-    "  -u      Disable output buffering.\n"
-    "  -v      Increase the verbosity of the logging output.\n",
+    "  -b, --buffer-size BSZ      Receive buffer size in bytes.\n"
+    "  -e, --exit-on-error        Stop the process on receiving error.\n"
+    "  -f, --time-precision PRE   Decimal precision of the time reports."
+      " (def=%d)\n"
+    "  -h, --help                 Print this help message.\n"
+    "  -k, --key KEY              Only report datagrams with this key.\n"
+    "  -n, --no-color             Turn off colors in logging messages.\n"
+    "  -o, --offset OFF           Ignore payloads with lesser sequence number."
+      " (def=%d)\n"
+    "  -p, --port NUM             UDP port for all endpoints. (def=%d)\n"
+    "  -r, --raw-output           Output the data in raw binary format.\n"
+    "  -u, --disable-buffering    Disable output buffering.\n"
+    "  -v, --verbose              Increase the logging verbosity.\n",
     MBEAT_VERSION_MAJOR,
     MBEAT_VERSION_MINOR,
     MBEAT_VERSION_PATCH,
@@ -102,6 +105,19 @@ static bool
 parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 {
   int opt;
+  struct option lopts[] = {
+    {"buffer-size",       required_argument, NULL, 'b'},
+    {"exit-on-error",     no_argument,       NULL, 'e'},
+    {"time-precision",    required_argument, NULL, 't'},
+    {"help",              no_argument,       NULL, 'h'},
+    {"no-color",          no_argument,       NULL, 'n'},
+    {"offset",            required_argument, NULL, 'o'},
+    {"port",              required_argument, NULL, 'p'},
+    {"raw-output",        no_argument,       NULL, 'r'},
+    {"disable-buffering", no_argument,       NULL, 'u'},
+    {"verbose",           no_argument,       NULL, 'v'},
+    {NULL, 0, NULL, 0}
+  };
 
   // Set optional arguments to sensible defaults.
   op_buf  = DEF_BUFFER_SIZE;
@@ -115,7 +131,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   op_nlvl = nlvl = DEF_NOTIFY_LEVEL;
   op_ncol = ncol = DEF_NOTIFY_COLOR;
 
-  while ((opt = getopt(argc, argv, "b:e:f:hk:no:p:ruv")) != -1) {
+  while ((opt = getopt_long(argc, argv, "b:ef:hk:no:p:ruv", lopts, NULL)) != -1) {
     switch (opt) {
 
       // Receive buffer size.
