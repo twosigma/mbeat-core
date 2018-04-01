@@ -16,6 +16,7 @@
 .Op Fl f Ar pre
 .Op Fl h
 .Op Fl k Ar key
+.Op Fl n
 .Op Fl o Ar off
 .Op Fl p Ar num
 .Op Fl r
@@ -72,6 +73,9 @@ with key equal to
 .Ar key
 get printed out (see FLOW IDENTIFICATION). If not specified, all payloads
 are accepted.
+.
+.It Fl n, -no-color
+Disables the usage of colors in the logging output.
 .
 .It Fl o, -offset Ar off
 Sets the sequence number offset, so that all mbeat payloads with sequence
