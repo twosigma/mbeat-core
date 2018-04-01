@@ -22,7 +22,7 @@ extern char hname[HNAME_LEN];
 
 // Semantic versioning scheme.
 #define MBEAT_VERSION_MAJOR  1
-#define MBEAT_VERSION_MINOR 13
+#define MBEAT_VERSION_MINOR 14
 #define MBEAT_VERSION_PATCH  0
 
 // Standard UDP port.
