@@ -309,21 +309,27 @@ add_socket_events(void)
 ///
 /// @param[in] pl  payload
 /// @param[in] ep  connection endpoint
-/// @param[in] tv  packet arrival time
+/// @param[in] rtv packet system arrival time
+/// @param[in] mtv packet steady arrival time
 /// @param[in] ttl Time-To-Live value upon arrival
 static void
 print_payload_csv(const payload* pl,
                   const endpoint* ep,
-                  const struct timespec* tv,
+                  const struct timespec* rtv,
+                  const struct timespec* mtv,
                   const int ttl)
 {
   static const uint32_t pow10[9] = {1, 10, 100, 1000, 10000, 100000,
     1000000, 10000000, 100000000};
   char ttl_str[8];
-  char dep_str[32];
-  char arr_str[32];
-  uint64_t sec;
-  uint64_t nsec;
+  char rdep_str[32];
+  char rarr_str[32];
+  char mdep_str[32];
+  char marr_str[32];
+  uint64_t rsec;
+  uint64_t rnsec;
+  uint64_t msec;
+  uint64_t mnsec;
 
   // Destination Time-To-Live string, depending on it's availability.
   if (0 <= ttl && ttl <= 255)
@@ -332,18 +338,27 @@ print_payload_csv(const payload* pl,
     strcpy(ttl_str, "N/A");
 
   // Round the sub-second time part to the selected precision.
-  memset(dep_str, '\0', sizeof(dep_str));
-  memset(arr_str, '\0', sizeof(arr_str));
+  memset(rdep_str, '\0', sizeof(rdep_str));
+  memset(rarr_str, '\0', sizeof(rarr_str));
+  memset(mdep_str, '\0', sizeof(mdep_str));
+  memset(marr_str, '\0', sizeof(marr_str));
 
   // Convert nanoseconds to seconds and nanoseconds.
-  sec  = pl->pl_rsec / 1000000000ULL;
-  nsec = pl->pl_rsec % 1000000000ULL;
+  rsec  = pl->pl_rsec / 1000000000ULL;
+  rnsec = pl->pl_rsec % 1000000000ULL;
+  msec  = pl->pl_msec / 1000000000ULL;
+  mnsec = pl->pl_msec % 1000000000ULL;
 
   if (op_prec > 0) {
-    sprintf(dep_str, ".%0*" PRIu64, (int)op_prec,
-                             nsec / pow10[9 - op_prec]);
-    sprintf(arr_str, ".%0*" PRIu32, (int)op_prec,
-            (uint32_t)tv->tv_nsec / pow10[9 - op_prec]);
+    sprintf(rdep_str, ".%0*" PRIu64, (int)op_prec,
+                             rnsec / pow10[9 - op_prec]);
+    sprintf(rarr_str, ".%0*" PRIu32, (int)op_prec,
+            (uint32_t)rtv->tv_nsec / pow10[9 - op_prec]);
+
+    sprintf(mdep_str, ".%0*" PRIu64, (int)op_prec,
+                             mnsec / pow10[9 - op_prec]);
+    sprintf(marr_str, ".%0*" PRIu32, (int)op_prec,
+            (uint32_t)mtv->tv_nsec / pow10[9 - op_prec]);
   }
 
   printf("%" PRIu64 ","     // Key 
@@ -357,8 +372,10 @@ print_payload_csv(const payload* pl,
          "%.*s,"            // PubHost
          "%.*s,"            // SubIf
          "%.*s,"            // SubHost
-         "%" PRIu64 "%s,"   // TimeOfDep
-         "%" PRIu64 "%s\n", // TimeOfArr
+         "%" PRIu64 "%s,"   // RealTimeDep
+         "%" PRIu64 "%s,"   // RealTimeArr
+         "%" PRIu64 "%s,"   // MonoTimeDep
+         "%" PRIu64 "%s\n", // MonoTimeArr
     pl->pl_key,
     pl->pl_snum,
     pl->pl_slen,
@@ -370,10 +387,10 @@ print_payload_csv(const payload* pl,
     (int)sizeof(pl->pl_hname), pl->pl_hname,
     (int)sizeof(ep->ep_iname), ep->ep_iname,
     (int)sizeof(hname), hname,
-    sec,
-    dep_str,
-    (uint64_t)tv->tv_sec,
-    arr_str);
+    rsec,                  rdep_str,
+    (uint64_t)rtv->tv_sec, rarr_str,
+    msec,                  mdep_str,
+    (uint64_t)mtv->tv_sec, marr_str);
 }
 
 /// Print the payload content in the raw binary format (big-endian) to the
@@ -381,12 +398,14 @@ print_payload_csv(const payload* pl,
 ///
 /// @param[in] pl  payload
 /// @param[in] ep  connection endpoint
-/// @param[in] tv  packet arrival time
+/// @param[in] rtv packet system arrival time
+/// @param[in] mtv packet steady arrival time
 /// @param[in] ttl Time-To-Live value upon arrival
 static void
 print_payload_raw(const payload* pl,
                   const endpoint* ep,
-                  const struct timespec* tv,
+                  const struct timespec* rtv,
+                  const struct timespec* mtv,
                   const int ttl)
 {
   raw_output ro;
@@ -394,7 +413,10 @@ print_payload_raw(const payload* pl,
   memcpy(&ro.ro_pl, pl, sizeof(*pl));
   memcpy(ro.ro_iname, ep->ep_iname, sizeof(ep->ep_iname));
   memcpy(ro.ro_hname, hname, sizeof(hname));
-  ro.ro_rsec = (uint64_t)tv->tv_nsec + (1000000000ULL * (uint64_t)tv->tv_sec);
+  ro.ro_rsec = (uint64_t)rtv->tv_nsec
+             + (1000000000ULL * (uint64_t)rtv->tv_sec);
+  ro.ro_msec = (uint64_t)mtv->tv_nsec
+             + (1000000000ULL * (uint64_t)mtv->tv_sec);
   ro.ro_ttla = (0 <= ttl && ttl <= 255) ? 1 : 0;
   ro.ro_ttl  = (uint8_t)ttl;
   memset(ro.ro_pad, 0, sizeof(ro.ro_pad));
@@ -411,7 +433,8 @@ print_payload_raw(const payload* pl,
 static void
 print_payload(payload* pl, const endpoint* ep, const int ttl)
 {
-  struct timespec tv;
+  struct timespec rtv;
+  struct timespec mtv;
 
   // Filter out non-matching keys.
   if (op_key != 0 && op_key != pl->pl_key)
@@ -424,13 +447,21 @@ print_payload(payload* pl, const endpoint* ep, const int ttl)
   // Apply the sequence number offset.
   (*pl).pl_snum -= op_off;
 
-  clock_gettime(CLOCK_REALTIME, &tv);
+  // Get the system clock value.
+  clock_gettime(CLOCK_REALTIME, &rtv);
+
+  // Get the steady clock value.
+  #ifdef __linux__
+    clock_gettime(CLOCK_MONOTONIC_RAW, &mtv);
+  #else
+    clock_gettime(CLOCK_MONOTONIC, &mtv);
+  #endif
 
   // Perform the user-selected type of output.
   if (op_raw)
-    print_payload_raw(pl, ep, &tv, ttl);
+    print_payload_raw(pl, ep, &rtv, &mtv, ttl);
   else
-    print_payload_csv(pl, ep, &tv, ttl);
+    print_payload_csv(pl, ep, &rtv, &mtv, ttl);
 }
 
 /// Convert all integers from the network to host byte order.
@@ -445,7 +476,8 @@ convert_payload(payload* pl)
   pl->pl_key   = ntohll(pl->pl_key);
   pl->pl_snum  = ntohll(pl->pl_snum);
   pl->pl_slen  = ntohll(pl->pl_slen);
-  pl->pl_rsec   = ntohll(pl->pl_rsec);
+  pl->pl_rsec  = ntohll(pl->pl_rsec);
+  pl->pl_msec  = ntohll(pl->pl_msec);
 }
 
 /// Traverse the control messages and obtain the received Time-To-Live value.
@@ -614,7 +646,8 @@ print_header(void)
   printf("Key,SeqNum,SeqLen,"
          "McastAddr,McastPort,SrcTTL,DstTTL,"
          "PubIf,PubHost,SubIf,SubHost,"
-         "TimeDep,TimeArr\n");
+         "RealTimeDep,RealTimeArr,"
+         "MonoTimeDep,MonoTimeArr\n");
 }
 
 /// Disable the standard output stream buffering based on user settings.

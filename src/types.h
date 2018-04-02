@@ -15,7 +15,7 @@
 #define INAME_LEN 16 // Maximal interface name length.
 #define HNAME_LEN 64 // Maximal hostname length.
 
-/// Payload of the datagram (128 bytes).
+/// Payload of the datagram (136 bytes).
 typedef struct _payload {
   uint32_t pl_magic;            ///< Magic identifier.
   uint8_t  pl_fver;             ///< Format version.
@@ -24,6 +24,7 @@ typedef struct _payload {
   uint32_t pl_maddr;            ///< Multicast IPv4 address.
   uint32_t pl_pad;              ///< Padding (unused).
   uint64_t pl_rsec;             ///< System time of departure (ns).
+  uint64_t pl_msec;             ///< Steady time of departure (ns).
   uint64_t pl_key;              ///< Unique key.
   uint64_t pl_snum;             ///< Sequence iteration counter.
   uint64_t pl_slen;             ///< Sequence length.
@@ -31,12 +32,13 @@ typedef struct _payload {
   char     pl_hname[HNAME_LEN]; ///< Publisher's hostname.
 } payload;
 
-/// Raw binary output format (220 bytes).
+/// Raw binary output format (228 bytes).
 typedef struct _raw_output {
   payload  ro_pl;               ///< Received payload.
   char     ro_iname[INAME_LEN]; ///< Subscriber's interface name.
   char     ro_hname[HNAME_LEN]; ///< Subscriber's hostname.
   uint64_t ro_rsec;             ///< System time of arrival (ns).
+  uint64_t ro_msec;             ///< Steady time of arrival (ns).
   uint8_t  ro_ttla;             ///< Availability of the Time-To-Live value.
   uint8_t  ro_ttl;              ///< Destination Time-To-Live value.
   uint8_t  ro_pad[2];           ///< Padding (unused).

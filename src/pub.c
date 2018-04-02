@@ -329,7 +329,8 @@ create_sockets(endpoint* eps)
 static void
 fill_payload(payload* pl, const endpoint* ep, const uint32_t snum)
 {
-  struct timespec tv;
+  struct timespec rtv;
+  struct timespec mtv;
 
   memset(pl, 0, sizeof(*pl));
 
@@ -344,9 +345,20 @@ fill_payload(payload* pl, const endpoint* ep, const uint32_t snum)
   memcpy(pl->pl_iname, ep->ep_iname, sizeof(pl->pl_iname));
   memcpy(pl->pl_hname, hname, sizeof(pl->pl_hname));
 
-  clock_gettime(CLOCK_REALTIME, &tv);
-  pl->pl_rsec = htonll((uint64_t)tv.tv_nsec +
-                       (1000000000ULL * (uint64_t)tv.tv_sec));
+  // Get the system clock value.
+  clock_gettime(CLOCK_REALTIME, &rtv);
+
+  // Get the steady clock value.
+  #ifdef __linux__
+    clock_gettime(CLOCK_MONOTONIC_RAW, &mtv);
+  #else
+    clock_gettime(CLOCK_MONOTONIC, &mtv);
+  #endif
+
+  pl->pl_rsec = htonll((uint64_t)rtv.tv_nsec +
+                       (1000000000ULL * (uint64_t)rtv.tv_sec));
+  pl->pl_msec = htonll((uint64_t)mtv.tv_nsec +
+                       (1000000000ULL * (uint64_t)mtv.tv_sec));
 }
 
 /// Publish datagrams to all requested multicast groups.
