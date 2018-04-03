@@ -344,10 +344,10 @@ print_payload_csv(const payload* pl,
   memset(marr_str, '\0', sizeof(marr_str));
 
   // Convert nanoseconds to seconds and nanoseconds.
-  rsec  = pl->pl_rsec / 1000000000ULL;
-  rnsec = pl->pl_rsec % 1000000000ULL;
-  msec  = pl->pl_msec / 1000000000ULL;
-  mnsec = pl->pl_msec % 1000000000ULL;
+  rsec  = pl->pl_rtime / 1000000000ULL;
+  rnsec = pl->pl_rtime % 1000000000ULL;
+  msec  = pl->pl_mtime / 1000000000ULL;
+  mnsec = pl->pl_mtime % 1000000000ULL;
 
   if (op_prec > 0) {
     sprintf(rdep_str, ".%0*" PRIu64, (int)op_prec,
@@ -413,10 +413,10 @@ print_payload_raw(const payload* pl,
   memcpy(&ro.ro_pl, pl, sizeof(*pl));
   memcpy(ro.ro_iname, ep->ep_iname, sizeof(ep->ep_iname));
   memcpy(ro.ro_hname, hname, sizeof(hname));
-  ro.ro_rsec = (uint64_t)rtv->tv_nsec
-             + (1000000000ULL * (uint64_t)rtv->tv_sec);
-  ro.ro_msec = (uint64_t)mtv->tv_nsec
-             + (1000000000ULL * (uint64_t)mtv->tv_sec);
+  ro.ro_rtime = (uint64_t)rtv->tv_nsec
+              + (1000000000ULL * (uint64_t)rtv->tv_sec);
+  ro.ro_mtime = (uint64_t)mtv->tv_nsec
+              + (1000000000ULL * (uint64_t)mtv->tv_sec);
   ro.ro_ttla = (0 <= ttl && ttl <= 255) ? 1 : 0;
   ro.ro_ttl  = (uint8_t)ttl;
   memset(ro.ro_pad, 0, sizeof(ro.ro_pad));
@@ -476,8 +476,8 @@ convert_payload(payload* pl)
   pl->pl_key   = ntohll(pl->pl_key);
   pl->pl_snum  = ntohll(pl->pl_snum);
   pl->pl_slen  = ntohll(pl->pl_slen);
-  pl->pl_rsec  = ntohll(pl->pl_rsec);
-  pl->pl_msec  = ntohll(pl->pl_msec);
+  pl->pl_rtime = ntohll(pl->pl_rtime);
+  pl->pl_mtime = ntohll(pl->pl_mtime);
 }
 
 /// Traverse the control messages and obtain the received Time-To-Live value.

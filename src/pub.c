@@ -355,9 +355,9 @@ fill_payload(payload* pl, const endpoint* ep, const uint32_t snum)
     clock_gettime(CLOCK_MONOTONIC, &mtv);
   #endif
 
-  pl->pl_rsec = htonll((uint64_t)rtv.tv_nsec +
+  pl->pl_rtime = htonll((uint64_t)rtv.tv_nsec +
                        (1000000000ULL * (uint64_t)rtv.tv_sec));
-  pl->pl_msec = htonll((uint64_t)mtv.tv_nsec +
+  pl->pl_mtime = htonll((uint64_t)mtv.tv_nsec +
                        (1000000000ULL * (uint64_t)mtv.tv_sec));
 }
 
