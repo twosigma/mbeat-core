@@ -37,7 +37,6 @@
 
 // Default values for optional arguments.
 #define DEF_BUFFER_SIZE  0 // Zero denotes the system default.
-#define DEF_PRECISION    3 // Three decimal digits of time precision.
 #define DEF_KEY          0 // Zero denotes no key filtering.
 #define DEF_OFFSET       0 // Sequence numbers have no offset by default.
 #define DEF_ERROR        0 // Do not stop the process on receiving error.
@@ -48,7 +47,6 @@
 
 // Command-line options.
 static uint64_t op_buf;  ///< Socket receive buffer size in bytes.
-static uint64_t op_prec; ///< Decimal precision of time-reporting.
 static uint64_t op_key;  ///< Key filter of received datagrams.
 static uint64_t op_off;  ///< Sequence number offset.
 static uint64_t op_port; ///< UDP port for all endpoints.
@@ -75,8 +73,6 @@ print_usage(void)
     "Options:\n"
     "  -b, --buffer-size BSZ      Receive buffer size in bytes.\n"
     "  -e, --exit-on-error        Stop the process on receiving error.\n"
-    "  -f, --time-precision PRE   Decimal precision of the time reports."
-      " (def=%d)\n"
     "  -h, --help                 Print this help message.\n"
     "  -k, --key KEY              Only report datagrams with this key.\n"
     "  -n, --no-color             Turn off colors in logging messages.\n"
@@ -89,7 +85,6 @@ print_usage(void)
     MBEAT_VERSION_MAJOR,
     MBEAT_VERSION_MINOR,
     MBEAT_VERSION_PATCH,
-    DEF_PRECISION,
     DEF_OFFSET,
     MBEAT_PORT);
 }
@@ -108,7 +103,6 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   struct option lopts[] = {
     {"buffer-size",       required_argument, NULL, 'b'},
     {"exit-on-error",     no_argument,       NULL, 'e'},
-    {"time-precision",    required_argument, NULL, 't'},
     {"help",              no_argument,       NULL, 'h'},
     {"no-color",          no_argument,       NULL, 'n'},
     {"offset",            required_argument, NULL, 'o'},
@@ -121,7 +115,6 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
 
   // Set optional arguments to sensible defaults.
   op_buf  = DEF_BUFFER_SIZE;
-  op_prec = DEF_PRECISION;
   op_key  = DEF_KEY;
   op_off  = DEF_OFFSET;
   op_port = MBEAT_PORT;
@@ -131,7 +124,7 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
   op_nlvl = nlvl = DEF_NOTIFY_LEVEL;
   op_ncol = ncol = DEF_NOTIFY_COLOR;
 
-  while ((opt = getopt_long(argc, argv, "b:ef:hk:no:p:ruv", lopts, NULL)) != -1) {
+  while ((opt = getopt_long(argc, argv, "b:ehk:no:p:ruv", lopts, NULL)) != -1) {
     switch (opt) {
 
       // Receive buffer size.
@@ -143,13 +136,6 @@ parse_args(int* ep_cnt, int* ep_idx, int argc, char* argv[])
       // Process exit on receiving error.
       case 'e':
         op_err = 1;
-        break;
-
-      // Decimal precision of the time reporting. The maximum allowed value is
-      // 9, as there are only 1,000,000,000 nanoseconds in a second.
-      case 'f':
-        if (parse_uint64(&op_prec, optarg, 0, 9) == 0)
-          return false;
         break;
 
       // Usage information.
@@ -319,17 +305,9 @@ print_payload_csv(const payload* pl,
                   const struct timespec* mtv,
                   const int ttl)
 {
-  static const uint32_t pow10[9] = {1, 10, 100, 1000, 10000, 100000,
-    1000000, 10000000, 100000000};
+  uint64_t rtime;
+  uint64_t mtime;
   char ttl_str[8];
-  char rdep_str[32];
-  char rarr_str[32];
-  char mdep_str[32];
-  char marr_str[32];
-  uint64_t rsec;
-  uint64_t rnsec;
-  uint64_t msec;
-  uint64_t mnsec;
 
   // Destination Time-To-Live string, depending on it's availability.
   if (0 <= ttl && ttl <= 255)
@@ -337,45 +315,24 @@ print_payload_csv(const payload* pl,
   else
     strcpy(ttl_str, "N/A");
 
-  // Round the sub-second time part to the selected precision.
-  memset(rdep_str, '\0', sizeof(rdep_str));
-  memset(rarr_str, '\0', sizeof(rarr_str));
-  memset(mdep_str, '\0', sizeof(mdep_str));
-  memset(marr_str, '\0', sizeof(marr_str));
+  to_nanos(&rtime, *rtv);
+  to_nanos(&mtime, *mtv);
 
-  // Convert nanoseconds to seconds and nanoseconds.
-  rsec  = pl->pl_rtime / 1000000000ULL;
-  rnsec = pl->pl_rtime % 1000000000ULL;
-  msec  = pl->pl_mtime / 1000000000ULL;
-  mnsec = pl->pl_mtime % 1000000000ULL;
-
-  if (op_prec > 0) {
-    sprintf(rdep_str, ".%0*" PRIu64, (int)op_prec,
-                             rnsec / pow10[9 - op_prec]);
-    sprintf(rarr_str, ".%0*" PRIu32, (int)op_prec,
-            (uint32_t)rtv->tv_nsec / pow10[9 - op_prec]);
-
-    sprintf(mdep_str, ".%0*" PRIu64, (int)op_prec,
-                             mnsec / pow10[9 - op_prec]);
-    sprintf(marr_str, ".%0*" PRIu32, (int)op_prec,
-            (uint32_t)mtv->tv_nsec / pow10[9 - op_prec]);
-  }
-
-  printf("%" PRIu64 ","     // Key 
-         "%" PRIu64 ","     // SeqNum
-         "%" PRIu64 ","     // SeqLen
-         "%s,"              // McastAddr
-         "%" PRIu16 ","     // McastPort
-         "%" PRIu8  ","     // SrcTTL
-         "%s,"              // DstTTL
-         "%.*s,"            // PubIf
-         "%.*s,"            // PubHost
-         "%.*s,"            // SubIf
-         "%.*s,"            // SubHost
-         "%" PRIu64 "%s,"   // RealTimeDep
-         "%" PRIu64 "%s,"   // RealTimeArr
-         "%" PRIu64 "%s,"   // MonoTimeDep
-         "%" PRIu64 "%s\n", // MonoTimeArr
+  printf("%" PRIu64 ","   // Key
+         "%" PRIu64 ","   // SeqNum
+         "%" PRIu64 ","   // SeqLen
+         "%s,"            // McastAddr
+         "%" PRIu16 ","   // McastPort
+         "%" PRIu8  ","   // SrcTTL
+         "%s,"            // DstTTL
+         "%.*s,"          // PubIf
+         "%.*s,"          // PubHost
+         "%.*s,"          // SubIf
+         "%.*s,"          // SubHost
+         "%" PRIu64 ","   // RealDep
+         "%" PRIu64 ","   // RealArr
+         "%" PRIu64 ","   // MonoDep
+         "%" PRIu64 "\n", // MonoArr
     pl->pl_key,
     pl->pl_snum,
     pl->pl_slen,
@@ -387,10 +344,8 @@ print_payload_csv(const payload* pl,
     (int)sizeof(pl->pl_hname), pl->pl_hname,
     (int)sizeof(ep->ep_iname), ep->ep_iname,
     (int)sizeof(hname), hname,
-    rsec,                  rdep_str,
-    (uint64_t)rtv->tv_sec, rarr_str,
-    msec,                  mdep_str,
-    (uint64_t)mtv->tv_sec, marr_str);
+    pl->pl_rtime, rtime,
+    pl->pl_mtime, mtime);
 }
 
 /// Print the payload content in the raw binary format (big-endian) to the
@@ -646,8 +601,7 @@ print_header(void)
   printf("Key,SeqNum,SeqLen,"
          "McastAddr,McastPort,SrcTTL,DstTTL,"
          "PubIf,PubHost,SubIf,SubHost,"
-         "RealTimeDep,RealTimeArr,"
-         "MonoTimeDep,MonoTimeArr\n");
+         "RealDep,RealArr,MonoDep,MonoArr\n");
 }
 
 /// Disable the standard output stream buffering based on user settings.

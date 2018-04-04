@@ -13,7 +13,6 @@
 .Nm
 .Op Fl b Ar bsz
 .Op Fl e
-.Op Fl f Ar pre
 .Op Fl h
 .Op Fl k Ar key
 .Op Fl n
@@ -60,9 +59,6 @@ to the kernel default.
 .It Fl e, -exit-on-error
 The process will terminate when the first receiving error is encountered.
 If not specified, the process will only print the relevant error message.
-.
-.It Fl f, -time-precision Ar pre
-Selects the sub-second decimal precision of arrival and departure timestamps.
 .
 .It Fl h, -help
 Prints the usage message.
@@ -128,7 +124,8 @@ All units are accepted case-insensitive. Zero memory size is allowed, e.g.
 The format of the payload is binary. All numeric fields are unsigned
 integers in network byte order, while the 64-bit numbers are split into high
 and low 32-bits, encoded in the network byte order. The total payload size is
-128 bytes. All valid payloads must start with a magic number
+.Em 136
+bytes. All valid payloads must start with a magic number
 .Em 0x6d626974 ,
 which is a big-endian equivalent of four ASCII letters
 .Qq mbit .
@@ -148,9 +145,11 @@ multicast port (2 bytes)
 .It
 multicast group (4 bytes)
 .It
-time of departure nanoseconds part (4 bytes)
+padding - unused (4 bytes)
 .It
-time of departure UNIX timestamp (8 bytes)
+time of departure, nanoseconds system time (8 bytes)
+.It
+time of departure, nanoseconds steady time (8 bytes)
 .It
 key (8 bytes)
 .It
@@ -191,15 +190,17 @@ SubIf
 .It
 SubHost
 .It
-TimeDep
+RealDep
 .It
-TimeArr
+RealArr
+.It
+MonoDep
+.It
+MonoArr
 .El
 .Sh OUTPUT FORMAT - RAW BINARY
 The raw binary format re-uses the exact structure of the payload, while
-appending
-.Em 7
-more fields:
+appending the following fields:
 .Pp
 .Bl -dash -compact -offset indent
 .It
@@ -207,19 +208,22 @@ interface name on the receivers end (16 bytes)
 .It
 host name on the receivers end (64 bytes)
 .It
-time of arrival UNIX timestamp (8 bytes)
+time of arrival, nanoseconds system time (8 bytes)
 .It
-time of arrival nanoseconds part (4 bytes)
+time of arrival, nanoseconds steady time (8 bytes)
 .It
 destination Time-To-Live value availability (1 byte)
 .It
 destination Time-To-Live value (1 byte)
 .It
-padding - unused (2 bytes)
+padding - unused (6 bytes)
 .El
 .Pp
 Unlike the CSV format, there is no header entry in raw binary. Unlike the
-on-wire payload representation, data is outputted in the host byte order.
+on-wire payload representation, data is outputted in the host byte order. The
+size of each entry in the raw file is
+.Em 248
+bytes.
 .Sh EXIT CODE
 The process returns
 .Em 0

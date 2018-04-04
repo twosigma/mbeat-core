@@ -77,10 +77,20 @@ cache_hostname(void)
 /// @param[out] tv seconds and nanoseconds
 /// @param[in]  ns nanoseconds
 void
-convert_nanos(struct timespec* tv, const uint64_t ns)
+from_nanos(struct timespec* tv, const uint64_t ns)
 {
   tv->tv_sec = ns / 1000000000;
   tv->tv_nsec = (ns % 1000000000);
+}
+
+/// Convert time in second and nanoseconds into only nanoseconds.
+///
+/// @param[out] ns nanoseconds
+/// @param[in]  tv seconds and nanoseconds
+void
+to_nanos(uint64_t* ns, const struct timespec tv)
+{
+  *ns = (uint64_t)tv.tv_nsec + ((uint64_t)tv.tv_sec * 1000000000ULL);
 }
 
 /// Encode a 64-bit unsigned integer for a reliable network transmission.

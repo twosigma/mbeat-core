@@ -355,10 +355,11 @@ fill_payload(payload* pl, const endpoint* ep, const uint32_t snum)
     clock_gettime(CLOCK_MONOTONIC, &mtv);
   #endif
 
-  pl->pl_rtime = htonll((uint64_t)rtv.tv_nsec +
-                       (1000000000ULL * (uint64_t)rtv.tv_sec));
-  pl->pl_mtime = htonll((uint64_t)mtv.tv_nsec +
-                       (1000000000ULL * (uint64_t)mtv.tv_sec));
+  to_nanos(&pl->pl_rtime, rtv);
+  to_nanos(&pl->pl_mtime, mtv);
+
+  pl->pl_rtime = htonll(pl->pl_rtime);
+  pl->pl_mtime = htonll(pl->pl_mtime);
 }
 
 /// Publish datagrams to all requested multicast groups.
@@ -386,7 +387,7 @@ publish_datagrams(endpoint* eps)
   notify(NL_INFO, false, "Starting to publish %" PRIu64 " datagram%s",
          op_cnt, (op_cnt > 1 ? "s" : ""));
 
-  convert_nanos(&ts, op_slp);
+  from_nanos(&ts, op_slp);
 
   // Prepare the address structure.
   addr.sin_port   = htons((uint16_t)op_port);

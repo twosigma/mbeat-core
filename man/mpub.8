@@ -149,7 +149,8 @@ Zero duration is allowed, e.g.
 The format of the payload is binary. All numeric fields are unsigned
 integers in network byte order, while the 64-bit numbers are split into high
 and low 32-bits, encoded in the network byte order. The total payload size is
-128 bytes. All valid payloads must start with a magic number
+.Em 136
+bytes. All valid payloads must start with a magic number
 .Em 0x6d626974 ,
 which is a big-endian equivalent of four ASCII letters
 .Qq mbit .
@@ -169,9 +170,11 @@ multicast port (2 bytes)
 .It
 multicast group (4 bytes)
 .It
-time of departure nanoseconds part (4 bytes)
+padding - unused (4 bytes)
 .It
-time of departure UNIX timestamp (8 bytes)
+time of departure, nanoseconds system time (8 bytes)
+.It
+time of departure, nanoseconds steady time (8 bytes)
 .It
 key (8 bytes)
 .It
