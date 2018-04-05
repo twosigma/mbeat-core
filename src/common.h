@@ -47,7 +47,7 @@ extern char hname[HNAME_LEN];
 
 void free_endpoints(endpoint* eps);
 bool cache_hostname(void);
-void from_nanos(struct timespec* tv, const uint64_t ms);
+void from_nanos(struct timespec* tv, const uint64_t ns);
 void to_nanos(uint64_t* ns, const struct timespec tv);
 uint64_t htonll(const uint64_t x);
 uint64_t ntohll(const uint64_t x);
